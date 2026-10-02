@@ -86,6 +86,12 @@ These addresses are referenced SRAM, **not bytes captured in `pbl.bin`**.
 Initial templates do not tell us the eventual live contents after MMIO
 reads or an alternate path.
 
+RAM ownership is boot-phase-dependent. PBL error handling uses a log header
+at `0x20000`; the separately acquired RPM image also declares `0x20000` as
+its load address. Those facts do not contradict each other. Likewise, the
+large clear through `0x2c000` at `0x6e74` is error cleanup, not the normal
+startup initializer.
+
 ### Ordered callbacks
 
 The table at `0x10ce0` has **24 word slots**, not a null-terminated list.
@@ -188,6 +194,14 @@ ranges. Their full cryptographic contracts are not recovered here.
 This documents branch behavior, **not the phone's actual policy state**.
 No fuse or cached-policy values were acquired in this analysis pass.
 
+The pointer to the expected 32-byte comparison value in certificate processing
+is loaded into `r3` from field `A+0x04` at `0x60b0`. Initialization at
+`0x61bc` can select an entry from the ROM table at `0x119a4` or a hardware-populated RAM buffer
+at `0x20640`, depending on configuration. Constants at `0x11b68/0x11b7c`
+participate in additional comparisons; they do not by themselves establish
+a single fixed trust anchor. Neither the active root nor its replaceability
+is established here.
+
 ## 4. The shared-record and entry contracts
 
 Relevant context fields:
@@ -266,6 +280,11 @@ If retry is skipped or the image returns, a once-only fallback can enter
 `0x251c`, which requests profile `0x14` then branches to `0x362c(2)`.
 If recovery returns to the error handler, its terminal fallthrough reaches
 `0x1fc`: clear general registers, then spin at `0x230`.
+
+The error handler does contain an epilogue at `0x6e94/0x6e98`, but it follows
+the nonreturning call to `0x1fc` at `0x6e90`. An ordinary returning path does
+not reach it. A `bl` instruction or a visible epilogue is not evidence that
+an assertion is merely a warning or that a version check is “soft.”
 
 ## What remains unknown
 

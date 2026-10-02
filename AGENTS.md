@@ -6,6 +6,8 @@
 - Keep observations, inferred roles, and unresolved candidates distinct.
   Anchor important claims to exact ROM addresses and bytes. A nearby filename
   string is not a function entrypoint; a `bx` is not by itself proof of Thumb.
+- A link instruction or visible epilogue does not prove that a callee returns.
+  Follow terminal callees and account for every stack-pointer adjustment.
 - The target manifest and symbol map are the sources of truth. Verify the
   artifact hash and annotation anchors before generating disassembly.
   Generated listings belong in `out/`, not in Git.
