@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "target": "msm8930-r1.2",
+  "artifact": {
+    "path": "pbl.bin",
+    "size": 131072,
+    "sha256": "c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e",
+    "base_address": "0x00000000",
+    "byte_order": "little",
+    "default_mode": "arm"
+  },
+  "hardware": {
+    "soc": "Qualcomm MSM8930",
+    "soc_id": 116,
+    "silicon_revision": "1.2",
+    "device": "Samsung Galaxy Express GT-I8730",
+    "compatible": ["samsung,expressltexx", "qcom,msm8930"],
+    "stock_bootloader": "I8730XWANE1"
+  },
+  "identification": {
+    "boot_rom_version": "2.0",
+    "qhsusb_version": "02.02.07",
+    "original_notice": "QUALCOMM COPYRIGHT 2011",
+    "notice_address": "0x00011fe0",
+    "zero_suffix_start": "0x00012574",
+    "interpretation": "Qualcomm PBL contents linked for zero; silicon ROM versus a mirror or alias is not independently proven by these reads."
+  },
+  "acquisition": {
+    "date_utc": "2026-10-01",
+    "physical_address": "0x00000000",
+    "length": "0x00020000",
+    "method": "Read-only /dev/mem mmap and aligned volatile 32-bit loads, through a RAM-booted diagnostic Pocketboot kernel.",
+    "repeat_reads": 2,
+    "repeat_result": "Byte-identical complete reads in one diagnostic boot; independent word and page prefixes also agree.",
+    "kernel_release": "7.1.0-rc3-pbl",
+    "kernel_repository": "https://github.com/samcday/linux.git",
+    "kernel_commit": "3bc07d096bddd33218b8c13b9fa30ffdaba3c050",
+    "reader_repository": "https://github.com/samcday/pocketboot.git",
+    "reader_commit": "fc27b695f5bf04d5b567c3d6172601c98326deaf",
+    "reader_sha256": "0d857360bd2c0289acd0e6d9d583f5f754757b69c7471a72ae1a60e94d2e45db",
+    "evidence_ref": "refs/notes/evidence",
+    "evidence_commit": "4b7685eac406948aed645f2f4377649af3b3b28e",
+    "restoration": "Persistent BOOT readback remained byte-identical. Device returned to its original Pocketboot kernel."
+  },
+  "rights": {
+    "origin": "Third-party Qualcomm firmware",
+    "redistribution_license": "Not established by this repository; readability is not a license grant.",
+    "notice": "NOTICE.md"
+  }
+}
