@@ -1,0 +1,91 @@
+# Reconciliation of contradictory structural claims
+
+Repository: samcday/bootromancy
+Commit: 3eebab06131e049824b425813aa6b0d92818b9bf
+Artifact: targets/msm8930-r1.2/pbl.bin,131072 bytes,base0
+SHA256 c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+
+An incoming parallel-analysis summary contradicted the existing map. It was
+not imported wholesale. The following checks used only the already pinned
+ROM and prior acquisition evidence; excluded attack/robustness reports were
+not opened. No hardware interaction occurred.
+
+Commands included tools/rom.py disasm on:
+  0x6cd8 length0x1f0;0x1fc length0x38;0x6bec length0xec
+  0x61bc length0xe0;0x6090 length0x30
+  0xf840 length0x48;0xfa90 length0x80;0xfb10 length0xfc
+  0x869c length0x40;0x86d0 length0x64
+Capstone5.0.7; artifact/80 anchors verified before each CLI operation.
+
+## Error handler does not ordinarily return
+
+0x6cd8's normal control flow may call recovery0x63b8 at0x6e2c. Its terminal
+fallthrough performs cleanup and at0x6e90 executes BL0x1fc (bytesd9e4ffeb).
+0x1fc clearsr0-r12;0x230 contains EAFFFFFE, an unconditional self-loop.
+The apparent POP/BX-LR epilogue at0x6e94/0x6e98 is therefore not reached by an
+ordinary returning path. Neither BL nor a visible epilogue proves a soft check.
+This does not assert a complete anti-rollback policy for every boot path.
+
+The separate logger0x6bec has a genuine returning path at0x6ca8/0x6cac.
+Its default implementation appends24-byte records until count reaches20,
+then returns0 without appending; it does not wrap in the inspected path.
+A registered hook can replace that default path, and invalid input enters
+0x6cd8. The blanket label 'log-and-return' belongs neither to all error
+handling nor to the0x6cd8 routine.
+
+## SRAM ownership is phase-specific
+
+0x6d60 loads literal0x20000;0x6d64..0x6d74 writes the log header including
+capacity0x14. This is compatible with a separately acquired RPM MBN image
+whose header declares load address0x20000. That RPM image's SHA256 is
+157ac0122f3158b298cf735ed7a001cdde1b98d3d635ae33b472c0d4efec58e8, recorded in
+samcday/pocketboot refs/notes/evidence on4b7685eac406948aed645f2f4377649af3b3b28e.
+The header declaration is not an independent trace of its later execution.
+The clear from0x201e8 through0x2c000 at0x6e74 is error cleanup, not proof of
+an undifferentiated normal-startup .data/.bss region.
+
+## The expected comparison reference is caller-supplied
+
+0x60b0: LDR r3,[r4,#4], where r4 is authentication contextA.
+0x60b8: BL0xf840.
+
+0xf840 PUSHes13 registers (r0-r11,lr), subtracting0x34 bytes; incomingr3
+is then at SP+0x0c.0xf844 subtracts another0x44 bytes. Relative to this new
+SP, saved incomingr3 is at SP+0x50, NOT SP+0x0c.
+If entrySP=E: savedr3=E-0x28; currentSP=E-0x78; currentSP+0x50=E-0x28.
+Explicit SP+0x50 accesses in f840..fbd8 are loads atf894,faac,fb58. The
+frame unwinds only atfbb8 (ADDsp,#0x54, then POP9 registers).
+
+0xfb40: ADD r3,sp,#0x0c supplies the local computed-output buffer.
+0xfb48: MOV r0,#2;0xfb4c: BL0x7fa0.
+0xfb58: LDR r1,[sp,#0x50] retrieves the expected-reference pointer.
+0xfb5c: MOV r2,#0x20;0xfb60: ADD r0,sp,#0x0c.
+0xfb64: BL0x2484 compares32 bytes.
+Thus SP+0x0c is computed output and SP+0x50 the saved caller pointer at this
+point. Confusing post-PUSH and post-SUB offsets reverses their interpretation.
+
+0x61bc initializes the context.0x61e4 loads r8=0x119a4. One configuration
+path reaches0x6254 ADD r0,r8,r4,LSL#5 after an index<13 check;0x6258 stores
+the selected pointer atA+4. Another path passes RAM0x20640 to0x869c and
+stores that returned pointer.0x869c reads hardware words near0x7042d8/
+0x7042dc in six5-byte chunks, then two bytes from0x704308, populating32 bytes.
+The first context wordA+0 is the cached auth-enabled flag, not that index.
+
+0xfa94 and0xfaa8 reference constants0x11b68/0x11b7c in additional comparisons;
+they do not replace the final comparison against the saved caller pointer.
+The incoming assertion that those two constants alone establish a sole
+immutable trust anchor is unsupported. This also does NOT establish that the
+active root is freely replaceable. No actual fuse/cache value was measured.
+
+All these distinctions were communicated back; the conflicting ordinary-
+return, SRAM-exclusivity and sole-fixed-anchor claims were retracted. A later
+incorrect SP-offset correction was also independently rejected and retracted.
+Protocol additions remain unmerged leads for a separately scoped pass.
+
+Validation after the documentation clarification:
+  make PYTHON=.venv/bin/python check
+  52 symbols/80 anchors verified;55 tests pass
+  git diff --check passes
+The ROM, symbol map and tooling behavior are unchanged. Evidence/source
+inspection, not keyword filtering or unverified agent summaries, decided
+which claims entered the atlas.
