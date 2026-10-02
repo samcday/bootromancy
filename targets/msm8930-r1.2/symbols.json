@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "target": "msm8930-r1.2",
+  "name_origin": "analyst",
+  "symbols": [
+    {
+      "address": "0x00000000",
+      "name": "reset_vector",
+      "kind": "label",
+      "confidence": "observed",
+      "summary": "The first ARM vector branches to reset_entry at 0x20.",
+      "evidence": [
+        {
+          "address": "0x00000000",
+          "bytes": "060000ea",
+          "note": "EA000006 decodes as ARM b 0x20."
+        }
+      ]
+    },
+    {
+      "address": "0x00000020",
+      "name": "reset_entry",
+      "kind": "function",
+      "confidence": "observed",
+      "summary": "Privileged ARM startup; preserves incoming r0-r2 in banked FIQ registers before further initialization.",
+      "evidence": [
+        {
+          "address": "0x00000020",
+          "bytes": "d1f021e30080a0e10190a0e102a0a0e1",
+          "note": "MSR CPSR_c,#0xd1; MOV r8,r0; MOV r9,r1; MOV r10,r2."
+        }
+      ]
+    },
+    {
+      "address": "0x000000ac",
+      "name": "select_rom_or_sram_path",
+      "kind": "label",
+      "confidence": "observed",
+      "summary": "Tests bit 0 at MMIO 0x00706034: clear reaches PC=0x20000, set continues ROM startup. Register semantics remain unresolved.",
+      "evidence": [
+        {"address": "0x000000ac", "bytes": "90029fe5001090e5010011e30000001a02f8a0e3", "note": "Literal load, dereference, TST #1, BNE 0xc0, MOV pc,#0x20000."},
+        {"address": "0x00000344", "bytes": "34607000", "note": "The addressed literal is 0x00706034."}
+      ]
+    },
+    {
+      "address": "0x00000188",
+      "name": "enter_rom_dispatch",
+      "kind": "label",
+      "confidence": "observed",
+      "summary": "Transfers to the ROM continuation at 0x8ed0 after privileged-mode and stack setup.",
+      "evidence": [
+        {"address": "0x00000184", "bytes": "bc019fe510ff2fe1", "note": "LDR r0,[pc,#0x1bc]; BX r0."},
+        {"address": "0x00000348", "bytes": "d08e0000", "note": "The target literal is 0x8ed0."}
+      ]
+    },
+    {
+      "address": "0x000001fc",
+      "name": "clear_registers_and_halt",
+      "kind": "function",
+      "confidence": "observed",
+      "summary": "Clears r0-r12 and enters a self-loop at 0x230. This is the terminal sink, not the whole error/recovery policy.",
+      "evidence": [
+        {"address": "0x000001fc", "bytes": "0000a0e30010a0e30020a0e30030a0e3", "note": "Beginning of the register-clear sequence."},
+        {"address": "0x0000022c", "bytes": "00c0a0e3feffffea", "note": "MOV r12,#0; B 0x230."}
+      ]
+    },
+    {
+      "address": "0x00000268",
+      "name": "copy_aligned_words",
+      "kind": "function",
+      "confidence": "observed",
+      "summary": "r0=destination, r1=source, r2=byte count; copies 32-byte blocks then words, preserving input registers. Not a general unaligned byte memcpy.",
+      "evidence": [
+        {"address": "0x00000268", "bytes": "ff472de90080a0e10190a0e102a0a0e1", "note": "Saves registers and retains destination/source/count in r8/r9/r10."},
+        {"address": "0x0000028c", "bytes": "ff00b9e8ff00a8e820a04ae2", "note": "Eight-word load/store followed by count -= 0x20."},
+        {"address": "0x000002a4", "bytes": "0100b9e80100a8e804a04ae2", "note": "Remainder loop transfers a full word and subtracts four."}
+      ]
+    },
+    {
+      "address": "0x000002bc",
+      "name": "zero_aligned_words",
+      "kind": "function",
+      "confidence": "observed",
+      "summary": "r0=destination, r1=byte count; zeroes in 32-byte blocks then words. Call sites use word-aligned storage and lengths.",
+      "evidence": [
+        {"address": "0x000002bc", "bytes": "ff432de90080a0e10190a0e10000a0e3", "note": "Saves registers, retains destination/count, and begins clearing the store registers."},
+        {"address": "0x000002fc", "bytes": "ff00a8e8209049e2", "note": "Stores eight zero words and subtracts 0x20."}
+      ]
+    },
+    {
+      "address": "0x00000344",
+      "name": "early_path_register_address",
+      "kind": "data",
+      "confidence": "observed",
+      "summary": "Literal 0x00706034 used by the first ROM/SRAM selector. Not identified as a secure-boot-enable register.",
+      "evidence": [
+        {"address": "0x00000344", "bytes": "34607000", "note": "Little-endian MMIO address, referenced at 0xac."}
+      ]
+    },
+    {
+      "address": "0x0000251c", "name": "enter_download_manager",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Requests clock profile code 0x14, then tail-enters 0x362c with r0=2. Complete transport semantics are deferred.",
+      "evidence": [
+        {"address": "0x00002520", "bytes": "1400a0e3db2400eb1040bde80200a0e33d0400ea", "note": "Profile request, restored frame, r0=2, branch to 0x362c."}
+      ]
+    },
+    {
+      "address": "0x0000362c", "name": "download_manager_candidate",
+      "kind": "function", "confidence": "candidate",
+      "summary": "Common entry reached by download wrappers with r0=2; USB/controller and command-dispatch internals are not mapped in this pass.",
+      "evidence": [
+        {"address": "0x000081e8", "bytes": "0200a0e30eedffeb", "note": "The pbl_dload-associated wrapper calls 0x362c with argument 2."}
+      ]
+    },
+    {
+      "address": "0x00005f4c", "name": "authenticate_loaded_image",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Separate boot stage: consults cached auth policy, processes certificates and verifies the signed header/code. No live policy value is known.",
+      "evidence": [
+        {"address": "0x00010d30", "bytes": "4c5f0000", "note": "Callback in word slot 20, after loading and before shared-data construction."},
+        {"address": "0x000060b8", "bytes": "e02500eb", "note": "BL 0xf840, certificate processing."},
+        {"address": "0x00006164", "bytes": "462400eb", "note": "BL 0xf284, signed-image verification."}
+      ]
+    },
+    {
+      "address": "0x000061bc", "name": "initialize_auth_context",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Sets C+0x1c to the auth context at 0x20660 and initializes hardware-derived policy and root-related fields.",
+      "evidence": [
+        {"address": "0x00010cf8", "bytes": "bc610000", "note": "Boot callback in word slot 6; also reused by recovery."}
+      ]
+    },
+    {
+      "address": "0x000062b0", "name": "set_auth_image_regions",
+      "kind": "function", "confidence": "observed",
+      "summary": "Stores code/header/signature/certificate addresses and lengths at A+0x18..0x34. This setter does not authenticate.",
+      "evidence": [
+        {"address": "0x00008ca8", "bytes": "80f5ffeb", "note": "Called by the loader after the payload read."},
+        {"address": "0x000062f4", "bytes": "e20f82e8", "note": "STM stores the eight range words through r2=A+0x18."}
+      ]
+    },
+    {
+      "address": "0x00006310", "name": "publish_auth_fields",
+      "kind": "function", "confidence": "observed",
+      "summary": "Copies cached authentication fields to S+0x28..0x4c and publishes a ROM blob pointer at S+0x50; some field meanings remain inferred.",
+      "evidence": [
+        {"address": "0x00009280", "bytes": "22f4ffeb", "note": "Called by the shared-record builder."},
+        {"address": "0x0000636c", "bytes": "0c0093e80c0084e8", "note": "Copies the pair A+0x10/+0x14 to S+0x38/+0x3c."}
+      ]
+    },
+    {
+      "address": "0x000063b8", "name": "retry_mode_0x101_then_download",
+      "kind": "function", "confidence": "observed",
+      "summary": "Gated retry reinitializes part of runtime/auth state and replays slots 14..23 in mode 0x101; may hand off to the image before a once-only download fallback.",
+      "evidence": [
+        {"address": "0x00006478", "bytes": "1410b7e5140097e50fe0a0e111ff2fe1", "note": "Recovery handoff loads entry/shared pointer and sets LR=0x6488 before BX."},
+        {"address": "0x00010d50", "bytes": "b8630000", "note": "Also exposed in the ROM service table."}
+      ]
+    },
+    {
+      "address": "0x000064c4", "name": "is_load_range_allowed",
+      "kind": "function", "confidence": "observed",
+      "summary": "Tests a destination interval against registered load ranges. Full storage and security policy is not implied by this check.",
+      "evidence": [
+        {"address": "0x00008c54", "bytes": "1af6ffeb", "note": "Loader calls the range-check routine before the payload read."}
+      ]
+    },
+    {
+      "address": "0x00006720", "name": "boot_main",
+      "kind": "function", "confidence": "observed",
+      "summary": "Runs hardware/runtime preludes, walks 24 word slots with 12 non-null callbacks, checks loaded state, and tail-hands off with the shared record.",
+      "evidence": [
+        {"address": "0x00006738", "bytes": "041196e7000051e30300000a78009fe50fe0a0e111ff2fe1", "note": "Word-indexed callback load, null skip, r0=context, indirect call."},
+        {"address": "0x0000675c", "bytes": "014084e2180054e3f3ffff3a", "note": "Increment word-slot index, compare against 24, loop."},
+        {"address": "0x000067c0", "bytes": "e00c0100a8020200", "note": "Dispatch table 0x10ce0 and context 0x202a8 literals."}
+      ]
+    },
+    {
+      "address": "0x000067b0", "name": "normal_sbl_handoff",
+      "kind": "label", "confidence": "observed",
+      "summary": "r1=C.entry; r0=C.shared=0x20240. Restores the boot-main frame before BX r1; differs from the recovery call-like handoff.",
+      "evidence": [
+        {"address": "0x000067b0", "bytes": "1410b4e5140094e57040bde811ff2fe1", "note": "Pre-indexed writeback advances r4 to C+0x14; the second load therefore reads C+0x28."}
+      ]
+    },
+    {
+      "address": "0x000067d8", "name": "boot_hardware_prelude",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Early hardware gating/MMIO setup before runtime-memory initialization; includes a conditional terminal halt. Register meanings are incomplete.",
+      "evidence": [
+        {"address": "0x00006728", "bytes": "2a0000eb", "note": "First direct call in boot_main."}
+      ]
+    },
+    {
+      "address": "0x00006cd8", "name": "boot_error_recovery",
+      "kind": "function", "confidence": "observed",
+      "summary": "Nonreturning error handling may attempt recovery and an SBL handoff; only its terminal fallthrough reaches the register-clear/halt sink.",
+      "evidence": [
+        {"address": "0x0000677c", "bytes": "550100eb", "note": "Boot main reports a callback failure here, including the word-slot index."},
+        {"address": "0x00006e2c", "bytes": "61fdff0b", "note": "Conditional BL to recovery at 0x63b8."},
+        {"address": "0x00006e90", "bytes": "d9e4ffeb", "note": "Terminal fallthrough calls 0x1fc, not the only possible outcome."}
+      ]
+    },
+    {
+      "address": "0x00006ef8", "name": "select_media_backend",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Dispatches C.path to SDCC-, SPI- or download-associated backends, establishes F=0x203bc, and checks the backend interface.",
+      "evidence": [
+        {"address": "0x00010d18", "bytes": "f86e0000", "note": "Callback in word slot 14; recovery starts replay here."},
+        {"address": "0x00006f24", "bytes": "186084e5", "note": "Stores the media-context pointer at C+0x18."}
+      ]
+    },
+    {
+      "address": "0x00007160", "name": "read_image_via_media",
+      "kind": "function", "confidence": "observed",
+      "summary": "Wrapper dispatches an image-read descriptor through F+0x18. Media-origin units and controller operations remain later work.",
+      "evidence": [
+        {"address": "0x00008c70", "bytes": "180094e514108de238f9ffeb", "note": "Loader passes F and its stack descriptor to this wrapper."}
+      ]
+    },
+    {
+      "address": "0x0000719c", "name": "read_header_via_media",
+      "kind": "function", "confidence": "observed",
+      "summary": "Wrapper dispatches through F+0x1c to read the retained header; the SDCC adapter requests 0x50 bytes.",
+      "evidence": [
+        {"address": "0x00008b50", "bytes": "91f9ffeb", "note": "Header-read call in the image loader."}
+      ]
+    },
+    {
+      "address": "0x00007514", "name": "initialize_sdcc_backend",
+      "kind": "function", "confidence": "inferred",
+      "summary": "SDCC-associated backend selected for path codes 1-4, 14, 15 and 0x101, or the first attempt in mode 0x100. Driver internals are deferred.",
+      "evidence": [
+        {"address": "0x00006fa0", "bytes": "5b0100eb", "note": "Normal storage backend call from the path dispatcher."},
+        {"address": "0x00006fac", "bytes": "580100eb", "note": "First attempt of the storage-then-download mode."}
+      ]
+    },
+    {
+      "address": "0x00007aac", "name": "initialize_spi_backend",
+      "kind": "function", "confidence": "inferred",
+      "summary": "SPI-associated backend selected for path codes 5, 9 and 16; controller implementation is deferred.",
+      "evidence": [
+        {"address": "0x00007024", "bytes": "a00200eb", "note": "Backend call after those path-code cases."}
+      ]
+    },
+    {
+      "address": "0x00007ea0", "name": "consume_boot_cookie",
+      "kind": "function", "confidence": "observed",
+      "summary": "Matches three-word cookies at 0x43e50, records selector 0-3 at C+0x2c and clears matched cookie words; transport meanings remain partly inferred.",
+      "evidence": [
+        {"address": "0x00010d08", "bytes": "a07e0000", "note": "Callback in word slot 10, before boot-path selection."}
+      ]
+    },
+    {
+      "address": "0x000081c0", "name": "enter_download_backend",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Download-associated path calls 0x362c with r0=2. If it returns, this wrapper reports 4 rather than media-success value 3.",
+      "evidence": [
+        {"address": "0x00006fbc", "bytes": "7f0400eb", "note": "Download backend call in the media dispatcher."},
+        {"address": "0x000081e8", "bytes": "0200a0e30eedffeb0400a0e1", "note": "Argument 2, call, and restoration of the status value held in r4."}
+      ]
+    },
+    {
+      "address": "0x00008208", "name": "write_early_hw_defaults",
+      "kind": "function", "confidence": "observed",
+      "summary": "Writes 1 to 0x00800820 and 0x104 to 0x008016c0; exact peripheral purpose is unresolved.",
+      "evidence": [
+        {"address": "0x00010ce8", "bytes": "08820000", "note": "Callback in word slot 2."}
+      ]
+    },
+    {
+      "address": "0x00008594", "name": "select_boot_path_code",
+      "kind": "function", "confidence": "observed",
+      "summary": "Maps cookie selectors to codes 13/0x100/0x101, otherwise derives a code from bits 2-7 at 0x00706034. Publishes C+4.",
+      "evidence": [
+        {"address": "0x00010d10", "bytes": "94850000", "note": "Callback in word slot 12, immediately before media dispatch."}
+      ]
+    },
+    {
+      "address": "0x0000863c", "name": "read_clock_profile_code",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Returns code 0x41 when bits 14-15 at 0x00706020 equal one, otherwise 0x14. These are not established MHz values.",
+      "evidence": [
+        {"address": "0x00008640", "bytes": "200090e5030900e22007a0e1010050e34100a0031400a013", "note": "Read, mask, shift, compare, and select the two codes."}
+      ]
+    },
+    {
+      "address": "0x00008800", "name": "configure_clock_profile",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Selects a hardware-derived profile code and calls the configuration helper; the selected code is stored in C+0.",
+      "evidence": [
+        {"address": "0x00010cf0", "bytes": "00880000", "note": "Callback in word slot 4."}
+      ]
+    },
+    {
+      "address": "0x00008890", "name": "read_rom_dispatch_selector",
+      "kind": "function", "confidence": "observed",
+      "summary": "Tests bit 0x100 at 0x0020002c, then bit 0x80 on another read if needed, for the alternate ROM-dispatch path.",
+      "evidence": [
+        {"address": "0x00008890", "bytes": "0216a0e32c0091e5010c10e32c00910580001003", "note": "MMIO base, first test and conditional second read/test."}
+      ]
+    },
+    {
+      "address": "0x00008b24", "name": "load_selected_image",
+      "kind": "function", "confidence": "observed",
+      "summary": "Reads/validates the 0x50-byte header, selects/checks a destination, reads the payload, stores auth inputs and saves loaded/entry fields. Authentication is a later stage.",
+      "evidence": [
+        {"address": "0x00010d28", "bytes": "248b0000", "note": "Callback in word slot 18."},
+        {"address": "0x00008b50", "bytes": "91f9ffeb", "note": "Header-read wrapper."},
+        {"address": "0x00008c78", "bytes": "38f9ffeb", "note": "Payload-read wrapper."},
+        {"address": "0x00008cac", "bytes": "107084e51c009de50060a0e3140084e5", "note": "Loaded=1; saved entry is the resolved destination."}
+      ]
+    },
+    {
+      "address": "0x00008ccc", "name": "loader_source_filename_1",
+      "kind": "data", "confidence": "observed",
+      "summary": "pbl_loader.c error-report filename; not a function entry.",
+      "evidence": [
+        {"address": "0x00008ccc", "bytes": "70626c5f6c6f616465722e6300", "note": "Literal filename bytes."}
+      ]
+    },
+    {
+      "address": "0x00008ce8", "name": "publish_image_header",
+      "kind": "function", "confidence": "observed",
+      "summary": "Stores retained header pointer 0x202d8 into S+0x54.",
+      "evidence": [
+        {"address": "0x00008d0c", "bytes": "20009fe5281094e5540081e5", "note": "Load header literal, load C.shared, store S+0x54."},
+        {"address": "0x00008d34", "bytes": "d8020200", "note": "Header address 0x202d8."}
+      ]
+    },
+    {
+      "address": "0x00008d24", "name": "loader_source_filename_2",
+      "kind": "data", "confidence": "observed",
+      "summary": "Second pbl_loader.c error-report filename; not a function entry.",
+      "evidence": [
+        {"address": "0x00008d24", "bytes": "70626c5f6c6f616465722e6300", "note": "Literal filename bytes."}
+      ]
+    },
+    {
+      "address": "0x00008d38", "name": "initialize_pmic_path",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Hardware-gated, PMIC-associated initialization can query/poll and sets raw/status words C+0x20/+0x24; detailed meanings remain unresolved.",
+      "evidence": [
+        {"address": "0x00010d00", "bytes": "388d0000", "note": "Callback in word slot 8."}
+      ]
+    },
+    {
+      "address": "0x00008ed0", "name": "rom_start_dispatch",
+      "kind": "function", "confidence": "observed",
+      "summary": "Selector chooses a branch through SRAM 0x43fe0 after a preparatory call, or installs default exception targets and enters boot_main.",
+      "evidence": [
+        {"address": "0x00008ed0", "bytes": "10402de96dfeffeb010050e30400001a", "note": "Reads the selector and branches according to its result."},
+        {"address": "0x00008ef4", "bytes": "a20b00eb1040bde807f6ffea", "note": "Install default targets, restore frame, tail-branch to 0x6720."}
+      ]
+    },
+    {
+      "address": "0x00008f04", "name": "publish_pmic_related_fields",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Copies C+0x20/+0x24 into S+0x58/+0x5c. The default second value is 8, not necessarily zero.",
+      "evidence": [
+        {"address": "0x00008f04", "bytes": "201090e5282090e5581082e5241090e5280090e55c1080e5", "note": "Two context-to-shared-record stores."}
+      ]
+    },
+    {
+      "address": "0x00009248", "name": "build_shared_handoff",
+      "kind": "function", "confidence": "observed",
+      "summary": "Builds the base shared record, exports media/auth/header fields and tail-publishes PMIC-related fields.",
+      "evidence": [
+        {"address": "0x00010d38", "bytes": "48920000", "note": "Callback in word slot 22, the last non-null normal stage."},
+        {"address": "0x00009250", "bytes": "150a00eb", "note": "Calls base-record initializer 0xbaac."}
+      ]
+    },
+    {
+      "address": "0x00009328", "name": "initialize_runtime_memory",
+      "kind": "function", "confidence": "observed",
+      "summary": "Copies ROM templates and zeroes several working-memory regions, including the context/shared/header area; distinct from the earlier exception-table installation.",
+      "evidence": [
+        {"address": "0x0000672c", "bytes": "fd0a00eb", "note": "Boot-main prelude calls this before the callback table."},
+        {"address": "0x00009388", "bytes": "cbdbffeb", "note": "Zero fill of 0x201e8 for 0x170 bytes covers the whole shared record."}
+      ]
+    },
+    {
+      "address": "0x0000baac", "name": "initialize_shared_record",
+      "kind": "function", "confidence": "observed",
+      "summary": "Sets C.shared=0x20240 and initializes identity/constants, service-table pointer and workspace/profile fields in that record.",
+      "evidence": [
+        {"address": "0x0000badc", "bytes": "284085e5", "note": "Stores r4, loaded as 0x20240, at C+0x28."}
+      ]
+    },
+    {
+      "address": "0x0000bb80", "name": "initialize_boot_context",
+      "kind": "function", "confidence": "observed",
+      "summary": "Clears the 0x30-byte context; initializes profile and PMIC defaults, default load base 0x2a000000 and last-word address 0x2a03fffc.",
+      "evidence": [
+        {"address": "0x00010ce0", "bytes": "80bb0000", "note": "First callback."},
+        {"address": "0x0000bbcc", "bytes": "000090e5080084e5001091e5010080e0040040e20c0084e5", "note": "Reads load-base/size constants and stores base and base+size-4."}
+      ]
+    },
+    {
+      "address": "0x0000bce0", "name": "register_load_ranges_once",
+      "kind": "function", "confidence": "observed",
+      "summary": "Once-only range registration for inclusive intervals 0x2e000..0x43e4f and 0x2a000000..0x2a03ffff; not a memory-clear routine.",
+      "evidence": [
+        {"address": "0x00010d20", "bytes": "e0bc0000", "note": "Callback in word slot 16."}
+      ]
+    },
+    {
+      "address": "0x0000bd84",
+      "name": "install_default_exception_targets",
+      "kind": "function",
+      "confidence": "observed",
+      "summary": "Copies 0x20 bytes from ROM 0x124c0 to SRAM 0x43fe0 using the descriptor at 0x11f3c; tail-calls copy_aligned_words.",
+      "evidence": [
+        {"address": "0x0000bd84", "bytes": "14009fe518209fe5001090e50c009fe5", "note": "Loads and dereferences the source, destination and length descriptor addresses."},
+        {"address": "0x0000bd9c", "bytes": "31d1ffea", "note": "Tail branch to 0x268, retaining the caller's return address."},
+        {"address": "0x00011f3c", "bytes": "c0240100e03f040020000000", "note": "Source 0x124c0, destination 0x43fe0, length 0x20."}
+      ]
+    },
+    {
+      "address": "0x0000f284", "name": "verify_signed_image",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Authentication-stage callee given header/code ranges, signature and certificate context; full cryptographic implementation is deferred.",
+      "evidence": [
+        {"address": "0x00006164", "bytes": "462400eb", "note": "Direct call from authenticate_loaded_image."}
+      ]
+    },
+    {
+      "address": "0x0000f840", "name": "process_certificate_chain",
+      "kind": "function", "confidence": "inferred",
+      "summary": "Authentication-stage callee consumes certificate-chain and root-policy inputs and returns certificate/metadata context; full contract is deferred.",
+      "evidence": [
+        {"address": "0x000060b8", "bytes": "e02500eb", "note": "Direct call before signed-image verification."}
+      ]
+    },
+    {
+      "address": "0x00010ce0", "name": "boot_stage_slots",
+      "kind": "data", "confidence": "observed",
+      "summary": "24 word slots, 12 non-null callbacks. Odd slots are skipped, not terminators. Recovery replays slots 14 through 23.",
+      "evidence": [
+        {"address": "0x00010ce0", "bytes": "80bb00000000000008820000000000000088000000000000bc61000000000000388d000000000000a07e0000000000009485000000000000f86e000000000000e0bc000000000000248b0000000000004c5f0000000000004892000000000000", "note": "Complete 0x60-byte dispatch table."}
+      ]
+    },
+    {
+      "address": "0x00010d40", "name": "exported_rom_services",
+      "kind": "data", "confidence": "observed",
+      "summary": "Five function pointers published at S+4: error-hook registration wrapper, two crypto-related helpers, download entry and recovery.",
+      "evidence": [
+        {"address": "0x00010d40", "bytes": "f48a000040f8000084f200001c250000b8630000", "note": "Pointer values; signatures are not all recovered."}
+      ]
+    },
+    {
+      "address": "0x00011f3c",
+      "name": "exception_target_copy_descriptor",
+      "kind": "data",
+      "confidence": "observed",
+      "summary": "Three words: ROM source, SRAM destination and byte count for the default exception-pointer table.",
+      "evidence": [
+        {"address": "0x00011f3c", "bytes": "c0240100e03f040020000000", "note": "Consumed by install_default_exception_targets, not executable code."}
+      ]
+    },
+    {
+      "address": "0x00011fe0",
+      "name": "rom_identification_banner",
+      "kind": "data",
+      "confidence": "observed",
+      "summary": "Qualcomm copyright notice followed by boot-ROM and QHSUSB version fields.",
+      "evidence": [
+        {"address": "0x00011fe0", "bytes": "5155414c434f4d4d", "note": "ASCII QUALCOMM; the original notice is preserved in NOTICE.md."}
+      ]
+    },
+    {
+      "address": "0x00012574",
+      "name": "zero_suffix",
+      "kind": "data",
+      "confidence": "observed",
+      "summary": "All captured bytes from this offset to 0x20000 are zero. This is a byte-layout observation, not proof of the physical ROM size.",
+      "evidence": [
+        {"address": "0x00012570", "bytes": "1eff2fe100000000", "note": "The last nonzero instruction-sized word is BX lr; the zero suffix begins immediately after it."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Disassembly backend for tools/rom.py; pinned so recorded listings stay
+# reproducible against this decoder's instruction forms.
+capstone==5.0.7
