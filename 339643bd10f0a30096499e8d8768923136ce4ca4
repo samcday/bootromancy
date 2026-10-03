@@ -5,3 +5,5 @@ Inputs were absent from the initial Delta checkout at e3cec1d81f1572324b10f0035d
 Commands: git fetch --no-tags local c208948cf0cd5e9f6ffa7baf0694d05c6696e892; git restore --source=c208948cf0cd5e9f6ffa7baf0694d05c6696e892 -- evidence/; sha256sum evidence/pbl_0x100000.bin; wc -c evidence/pbl_0x100000.bin.
 
 Result: 98226 bytes; SHA-256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7, matching the acquisition README. This verifies the supplied file identity, not completeness of the physical ROM or the accuracy of previous analysis. The page-table dump is preserved as part of the original evidence tree, not used as PBL code.
+
+Migration provenance: this commit imports msm8953FirmwareReversing 16b4470a1ac6f5e6278e1f73a57163b9318a7682 under msm8953/. Source repo remains unchanged. Local format-patch/git am transfer; no network. Original evidence note retained above; its paths are now relative to msm8953/.
