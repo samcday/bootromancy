@@ -1,0 +1,131 @@
+Offline source-to-byte reconstruction evidence
+
+Input: evidence/pbl_0x100000.bin, captured sakura PBL, 98226 bytes, SHA256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7. Load base 0x00100000. No original pbl.elf symbols used; no device or generated ARM code executed.
+
+Command: python3 reconstruction/check.py
+
+PASS ROM identity: 98226 bytes, sha256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7
+arm-none-eabi-gcc (Fedora 15.2.0-5.fc45) 15.2.0
+GNU assembler (Fedora 2.45-4.fc45) 2.45
+GNU ld (Fedora 2.45-4.fc45) 2.45
+GNU objcopy (Fedora 2.45-4.fc45) 2.45
+PASS asm: 104 exact bytes at 0x0010f000, sha256 cc708aaf7651e74b6f5f818063d486953b964ee5f2873ab3ef2859f2f8c7fbfb
+PASS c: 16 exact bytes at 0x0010f38c, sha256 51e871700860550d8c0292d500a5135b9aa791dfb36338c2a693a0818468e6c6
+PASS rejected compiled mutation: asm-wrong-return: 104 bytes, expected 104; first difference at slice +0x28
+PASS rejected compiled mutation: asm-inverted-condition: 104 bytes, expected 104; first difference at slice +0x17
+PASS rejected compiled mutation: c-wrong-mask: 16 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-inverted-condition: 20 bytes, expected 16; first difference at slice +0xc
+PASS rejected compiled mutation: c-wrong-return: 20 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-wrong-mmio: 16 bytes, expected 16; first difference at slice +0x4
+PASS rejected changed ROM byte
+PASS rejected truncated ROM
+PASS all offline byte gates and 8 negative controls; artifacts: /var/home/sam/.local/share/delta/worktrees/5ytrvh0a5c9v/msm8953FirmwareReversing/reconstruction/build
+
+Positive C disassembly
+
+/var/home/sam/.local/share/delta/worktrees/5ytrvh0a5c9v/msm8953FirmwareReversing/reconstruction/build/c.elf:     file format elf32-littlearm
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         00000010  0010f38c  0010f38c  0000038c  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .persistent   00000000  0011039c  0011039c  0000039c  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .noinit       00000000  0011039c  0011039c  00000000  2**2
+                  ALLOC
+  3 .ARM.attributes 0000002f  00000000  00000000  0000039c  2**0
+                  CONTENTS, READONLY
+SYMBOL TABLE:
+0010f38c l    d  .text	00000000 .text
+0011039c l    d  .persistent	00000000 .persistent
+0011039c l    d  .noinit	00000000 .noinit
+00000000 l    d  .ARM.attributes	00000000 .ARM.attributes
+00000000 l    df *ABS*	00000000 c.c
+0011039c g       .text	00000000 _bss_end__
+0011039c g       .text	00000000 __bss_start__
+0011039c g       .text	00000000 __bss_end__
+0011039c g       .text	00000000 __bss_start
+0010f38c g     F .text	00000010 pbl_read_config_bit28
+0011039c g       .text	00000000 __end__
+0011039c g       .text	00000000 _edata
+0011039c g       .text	00000000 _end
+00080000 g       .noinit	00000000 _stack
+0011039c g       .text	00000000 __data_start
+
+Disassembly of section .text:
+
+0010f38c <pbl_read_config_bit28>:
+  10f38c:	e3a00aa6 	mov	r0, #679936	@ 0xa6000
+  10f390:	e5900018 	ldr	r0, [r0, #24]
+  10f394:	e7e00e50 	ubfx	r0, r0, #28, #1
+  10f398:	e12fff1e 	bx	lr
+
+Positive assembly disassembly
+
+/var/home/sam/.local/share/delta/worktrees/5ytrvh0a5c9v/msm8953FirmwareReversing/reconstruction/build/asm.elf:     file format elf32-littlearm
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         00000068  0010f000  0010f000  00001000  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .persistent   00000000  00110068  00110068  00001068  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 .noinit       00000000  00110068  00110068  00000000  2**2
+                  ALLOC
+  3 .ARM.attributes 00000020  00000000  00000000  00001068  2**0
+                  CONTENTS, READONLY
+SYMBOL TABLE:
+0010f000 l    d  .text	00000000 .text
+00110068 l    d  .persistent	00000000 .persistent
+00110068 l    d  .noinit	00000000 .noinit
+00000000 l    d  .ARM.attributes	00000000 .ARM.attributes
+00000000 l    df *ABS*	00000000 asm.o
+00110068 g       .text	00000000 _bss_end__
+00110068 g       .text	00000000 __bss_start__
+00110068 g       .text	00000000 __bss_end__
+00110068 g       .text	00000000 __bss_start
+00110068 g       .text	00000000 __end__
+0010f000 g     F .text	00000068 pbl_copy_words
+00110068 g       .text	00000000 _edata
+00110068 g       .text	00000000 _end
+00080000 g       .noinit	00000000 _stack
+00110068 g       .text	00000000 __data_start
+
+Disassembly of section .text:
+
+0010f000 <pbl_copy_words>:
+  10f000:	e92d47f0 	push	{r4, r5, r6, r7, r8, r9, sl, lr}
+  10f004:	e1a08000 	mov	r8, r0
+  10f008:	e1a09001 	mov	r9, r1
+  10f00c:	e1a0a002 	mov	sl, r2
+  10f010:	e35a0020 	cmp	sl, #32
+  10f014:	aa000005 	bge	10f030 <pbl_copy_words+0x30>
+  10f018:	e35a0004 	cmp	sl, #4
+  10f01c:	aa000007 	bge	10f040 <pbl_copy_words+0x40>
+  10f020:	e35a0000 	cmp	sl, #0
+  10f024:	ca000009 	bgt	10f050 <pbl_copy_words+0x50>
+  10f028:	e3a00001 	mov	r0, #1
+  10f02c:	e8bd87f0 	pop	{r4, r5, r6, r7, r8, r9, sl, pc}
+  10f030:	e8b900ff 	ldm	r9!, {r0, r1, r2, r3, r4, r5, r6, r7}
+  10f034:	e8a800ff 	stmia	r8!, {r0, r1, r2, r3, r4, r5, r6, r7}
+  10f038:	e24aa020 	sub	sl, sl, #32
+  10f03c:	eafffff3 	b	10f010 <pbl_copy_words+0x10>
+  10f040:	e8b90001 	ldm	r9!, {r0}
+  10f044:	e8a80001 	stmia	r8!, {r0}
+  10f048:	e24aa004 	sub	sl, sl, #4
+  10f04c:	eafffff1 	b	10f018 <pbl_copy_words+0x18>
+  10f050:	e4d90001 	ldrb	r0, [r9], #1
+  10f054:	e4c80001 	strb	r0, [r8], #1
+  10f058:	e24aa001 	sub	sl, sl, #1
+  10f05c:	e35a0000 	cmp	sl, #0
+  10f060:	cafffffa 	bgt	10f050 <pbl_copy_words+0x50>
+  10f064:	daffffef 	ble	10f028 <pbl_copy_words+0x28>
+
+Scope and toolchain
+GCC15.2/binutils2.45. Positive builds compare all objcopy output against hash-verified input slices. C emits 16 bytes at 0x10f38c using -O2 -march=armv7-a -marm and -ffixed-r1/-ffixed-r2/-ffixed-r3; unconstrained GCC selects r3 for its pointer instead of ROM r0. Reserving r3 alone selects r2; reserving r3 and r2 selects r1; reserving all three matches r0. Full flags are in reconstruction/check.py C_FLAGS.
+
+Scope and toolchain
+Assembly emits 104 bytes at 0x10f000 using as -mcpu=arm7tdmi. Full 26-instruction function, including signed length comparisons and all stack effects. Source contains mnemonic instructions only.
+
+Scope and toolchain
+Six negative source models compile/link successfully but fail the exact-byte comparator; two identity mutations fail the ROM check. Binary equality establishes these bounded reconstructions, not capture completeness, original compiler identity, whole-ROM mapping, or hardware register meaning.
