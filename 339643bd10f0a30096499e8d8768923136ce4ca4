@@ -1,0 +1,7 @@
+Offline evidence restoration for MSM8953 reconstruction.
+
+Inputs were absent from the initial Delta checkout at e3cec1d81f1572324b10f0035dd5086461f6cf52. Recovered the evidence/ tree unchanged from c208948cf0cd5e9f6ffa7baf0694d05c6696e892 via the local filesystem Git remote. No network, device, USB, or EDL command was used.
+
+Commands: git fetch --no-tags local c208948cf0cd5e9f6ffa7baf0694d05c6696e892; git restore --source=c208948cf0cd5e9f6ffa7baf0694d05c6696e892 -- evidence/; sha256sum evidence/pbl_0x100000.bin; wc -c evidence/pbl_0x100000.bin.
+
+Result: 98226 bytes; SHA-256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7, matching the acquisition README. This verifies the supplied file identity, not completeness of the physical ROM or the accuracy of previous analysis. The page-table dump is preserved as part of the original evidence tree, not used as PBL code.
