@@ -129,3 +129,5 @@ Assembly emits 104 bytes at 0x10f000 using as -mcpu=arm7tdmi. Full 26-instructio
 
 Scope and toolchain
 Six negative source models compile/link successfully but fail the exact-byte comparator; two identity mutations fail the ROM check. Binary equality establishes these bounded reconstructions, not capture completeness, original compiler identity, whole-ROM mapping, or hardware register meaning.
+
+Migration provenance: this commit imports msm8953FirmwareReversing e31398f16a07d4debd7dd3cff49842891a304059 under msm8953/. Source repo remains unchanged. Local format-patch/git am transfer; no network. Original evidence note retained above; run from bootromancy root with python3 msm8953/reconstruction/check.py.
