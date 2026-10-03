@@ -1,0 +1,281 @@
+Offline rooted-map evidence and final one-command acceptance
+
+Repository: bootromancy, namespace msm8953/. Input SHA256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7,98226 bytes,base0x100000. This map is rooted syntactic A32 control flow under explicit normal-call-return assumptions and reviewed pointer consumers. It is not a total function census or whole-ROM source model.
+
+Toolchains: Capstone5.0.7 for regeneration only; GCC15.2.0/binutils2.45 for bounded compilation and independent inspection. python3 -S proved the acceptance path needs no site packages/Capstone.
+
+Commands: function_map.py --generate --output-dir temporary-directory; cmp all three generated artifacts to tracked snapshots; python3 -S function_map.py --check; python3 -S function_map.py --self-test; python3 -S msm8953/reconstruction/check.py; git diff --cached --check.
+
+Map regeneration/consistency output:
+PASS offline rooted map {"audit_only_blocks": 1, "audit_only_instructions": 4, "call_split_blocks": 1155, "candidate_callable_entries": 82, "code_bytes": 19296, "control_entry_addresses": 17, "decoded_instructions": 4824, "edge_status_counts": {"a32": 5441, "outside_or_unaligned": 1, "unsupported_thumb": 1}, "edges": 5443, "entry_addresses_union": 108, "observed_rom_data_bytes": 1104, "pointer_use_records": 28, "unknown_unvisited_bytes": 77826, "unknown_unvisited_spans": 74, "unresolved_by_kind": {"indirect_call": 28, "indirect_jump": 2, "return_form": 96}, "vector_rooted_blocks": 1154, "vector_rooted_instructions": 4820, "vector_roots": 8}
+PASS deterministic regeneration: all three artifacts byte-identical
+PASS offline rooted map {"audit_only_blocks": 1, "audit_only_instructions": 4, "call_split_blocks": 1155, "candidate_callable_entries": 82, "code_bytes": 19296, "control_entry_addresses": 17, "decoded_instructions": 4824, "edge_status_counts": {"a32": 5441, "outside_or_unaligned": 1, "unsupported_thumb": 1}, "edges": 5443, "entry_addresses_union": 108, "observed_rom_data_bytes": 1104, "pointer_use_records": 28, "unknown_unvisited_bytes": 77826, "unknown_unvisited_spans": 74, "unresolved_by_kind": {"indirect_call": 28, "indirect_jump": 2, "return_form": 96}, "vector_rooted_blocks": 1154, "vector_rooted_instructions": 4820, "vector_roots": 8}
+PASS 5 stdlib negative controls
+PASS offline rooted map {"audit_only_blocks": 1, "audit_only_instructions": 4, "call_split_blocks": 1155, "candidate_callable_entries": 82, "code_bytes": 19296, "control_entry_addresses": 17, "decoded_instructions": 4824, "edge_status_counts": {"a32": 5441, "outside_or_unaligned": 1, "unsupported_thumb": 1}, "edges": 5443, "entry_addresses_union": 108, "observed_rom_data_bytes": 1104, "pointer_use_records": 28, "unknown_unvisited_bytes": 77826, "unknown_unvisited_spans": 74, "unresolved_by_kind": {"indirect_call": 28, "indirect_jump": 2, "return_form": 96}, "vector_rooted_blocks": 1154, "vector_rooted_instructions": 4820, "vector_roots": 8}
+
+Final integrated acceptance output:
+PASS ROM identity: 98226 bytes, sha256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7
+arm-none-eabi-gcc (Fedora 15.2.0-5.fc45) 15.2.0
+GNU assembler (Fedora 2.45-4.fc45) 2.45
+GNU ld (Fedora 2.45-4.fc45) 2.45
+GNU objcopy (Fedora 2.45-4.fc45) 2.45
+PASS map snapshot consistency and its 5 negative controls (no decoder)
+PASS asm: 104 exact bytes at 0x0010f000, sha256 cc708aaf7651e74b6f5f818063d486953b964ee5f2873ab3ef2859f2f8c7fbfb
+PASS c: 16 exact bytes at 0x0010f38c, sha256 51e871700860550d8c0292d500a5135b9aa791dfb36338c2a693a0818468e6c6
+PASS rejected compiled mutation: asm-wrong-return: 104 bytes, expected 104; first difference at slice +0x28
+PASS rejected compiled mutation: asm-inverted-condition: 104 bytes, expected 104; first difference at slice +0x17
+PASS rejected compiled mutation: c-wrong-mask: 16 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-inverted-condition: 20 bytes, expected 16; first difference at slice +0xc
+PASS rejected compiled mutation: c-wrong-return: 20 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-wrong-mmio: 16 bytes, expected 16; first difference at slice +0x4
+PASS rejected changed ROM byte
+PASS rejected truncated ROM
+PASS all offline byte gates and 8 negative controls; artifacts: /var/home/sam/src/bootromancy/.delta/worktrees/z249esxw4ga5/bootromancy/msm8953/reconstruction/build
+
+Integration negative control: copied checker/map sources and snapshot to scratch, appended newline to JSON without renewing manifest, invoked copied check.py against genuine ROM. Required exit1 and map snapshot failure before byte compilation. Output:
+FAIL: map snapshot check failed:
+FAIL: manifest identity/digest/version mismatch
+
+PASS ROM identity: 98226 bytes, sha256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7
+arm-none-eabi-gcc (Fedora 15.2.0-5.fc45) 15.2.0
+GNU assembler (Fedora 2.45-4.fc45) 2.45
+GNU ld (Fedora 2.45-4.fc45) 2.45
+GNU objcopy (Fedora 2.45-4.fc45) 2.45
+
+All Python sources parsed with ast.parse. Generated TSV empty operand fields intentionally retain final tab; scoped .gitattributes records this format rule.
+
+Independent binutils inspection (each command: arm-none-eabi-objdump -D -b binary -m arm -EL --adjust-vma=0x100000 --start-address=A --stop-address=B msm8953/evidence/pbl_0x100000.bin; selected bounds shown below):
+
+msm8953/evidence/pbl_0x100000.bin:     file format binary
+
+Disassembly of section .data:
+
+001002dc <.data+0x2dc>:
+  1002dc:	e59fd090 	ldr	sp, [pc, #144]	@ 0x100374
+  1002e0:	e12fff1e 	bx	lr
+
+msm8953/evidence/pbl_0x100000.bin:     file format binary
+
+Disassembly of section .data:
+
+00103568 <.data+0x3568>:
+  103568:	e3a02050 	mov	r2, #80	@ 0x50
+  10356c:	e59f0038 	ldr	r0, [pc, #56]	@ 0x1035ac
+  103570:	eb002ea2 	bl	0x10f000
+  103574:	e3500000 	cmp	r0, #0
+  103578:	1a000004 	bne	0x103590
+  10357c:	e3a03058 	mov	r3, #88	@ 0x58
+  103580:	e3a02b41 	mov	r2, #66560	@ 0x10400
+  103584:	e3a010fa 	mov	r1, #250	@ 0xfa
+  103588:	e28f0008 	add	r0, pc, #8
+  10358c:	eb00023e 	bl	0x103e8c
+  103590:	e3a00000 	mov	r0, #0
+  103594:	e8bd8010 	pop	{r4, pc}
+
+msm8953/evidence/pbl_0x100000.bin:     file format binary
+
+Disassembly of section .data:
+
+00103e8c <.data+0x3e8c>:
+  103e8c:	e92d47f0 	push	{r4, r5, r6, r7, r8, r9, sl, lr}
+  103e90:	e1a06000 	mov	r6, r0
+  103e94:	e1a07001 	mov	r7, r1
+  103e98:	e1a04002 	mov	r4, r2
+  103e9c:	e1a05003 	mov	r5, r3
+  103ea0:	ebfff10d 	bl	0x1002dc
+  103ea4:	e59f8230 	ldr	r8, [pc, #560]	@ 0x1040dc
+  103ea8:	e5980000 	ldr	r0, [r8]
+  103eac:	e3500005 	cmp	r0, #5
+  103eb0:	2a00001c 	bcs	0x103f28
+  103eb4:	eb002cd2 	bl	0x10f204
+  103eb8:	e3500000 	cmp	r0, #0
+  103ebc:	1a000019 	bne	0x103f28
+  103ec0:	e5980000 	ldr	r0, [r8]
+  103ec4:	e59f9214 	ldr	r9, [pc, #532]	@ 0x1040e0
+  103ec8:	e2801001 	add	r1, r0, #1
+  103ecc:	e1811004 	orr	r1, r1, r4
+  103ed0:	e38114ef 	orr	r1, r1, #-285212672	@ 0xef000000
+  103ed4:	e7891280 	str	r1, [r9, r0, lsl #5]
+  103ed8:	e0890280 	add	r0, r9, r0, lsl #5
+  103edc:	e59f1200 	ldr	r1, [pc, #512]	@ 0x1040e4
+  103ee0:	e5805004 	str	r5, [r0, #4]
+  103ee4:	e5911000 	ldr	r1, [r1]
+  103ee8:	e580100c 	str	r1, [r0, #12]
+  103eec:	eb0004de 	bl	0x10526c
+  103ef0:	e5981000 	ldr	r1, [r8]
+  103ef4:	e0891281 	add	r1, r9, r1, lsl #5
+  103ef8:	e5810010 	str	r0, [r1, #16]
+  103efc:	eb002ceb 	bl	0x10f2b0
+  103f00:	e5981000 	ldr	r1, [r8]
+  103f04:	e1a02000 	mov	r2, r0
+  103f08:	e0890281 	add	r0, r9, r1, lsl #5
+  103f0c:	e2811001 	add	r1, r1, #1
+  103f10:	e5802008 	str	r2, [r0, #8]
+  103f14:	e1842001 	orr	r2, r4, r1
+  103f18:	e38224ef 	orr	r2, r2, #-285212672	@ 0xef000000
+  103f1c:	e580201c 	str	r2, [r0, #28]
+  103f20:	e1c061f4 	strd	r6, [r0, #20]
+  103f24:	e5881000 	str	r1, [r8]
+  103f28:	e20408ff 	and	r0, r4, #16711680	@ 0xff0000
+  103f2c:	e3500811 	cmp	r0, #1114112	@ 0x110000
+  103f30:	e3a06000 	mov	r6, #0
+  103f34:	1a00000b 	bne	0x103f68
+  103f38:	e5980000 	ldr	r0, [r8]
+  103f3c:	e59f11a4 	ldr	r1, [pc, #420]	@ 0x1040e8
+  103f40:	e0600200 	rsb	r0, r0, r0, lsl #4
+  103f44:	e0810100 	add	r0, r1, r0, lsl #2
+  103f48:	e285103c 	add	r1, r5, #60	@ 0x3c
+  103f4c:	e1550001 	cmp	r5, r1
+  103f50:	2a000004 	bcs	0x103f68
+  103f54:	e5952000 	ldr	r2, [r5]
+  103f58:	e4802004 	str	r2, [r0], #4
+  103f5c:	e4856004 	str	r6, [r5], #4
+  103f60:	e1550001 	cmp	r5, r1
+  103f64:	3afffffa 	bcc	0x103f54
+  103f68:	e2040cff 	and	r0, r4, #65280	@ 0xff00
+  103f6c:	e3500c7f 	cmp	r0, #32512	@ 0x7f00
+  103f70:	8a000002 	bhi	0x103f80
+  103f74:	eb00050f 	bl	0x1053b8
+  103f78:	e3500000 	cmp	r0, #0
+  103f7c:	0bfffd8e 	bleq	0x1035bc
+  103f80:	eb0004b6 	bl	0x105260
+  103f84:	e1a04000 	mov	r4, r0
+  103f88:	e5900038 	ldr	r0, [r0, #56]	@ 0x38
+  103f8c:	e3500001 	cmp	r0, #1
+  103f90:	1a00004f 	bne	0x1040d4
+  103f94:	e59f0150 	ldr	r0, [pc, #336]	@ 0x1040ec
+  103f98:	e59f7150 	ldr	r7, [pc, #336]	@ 0x1040f0
+  103f9c:	e5900000 	ldr	r0, [r0]
+  103fa0:	e0475000 	sub	r5, r7, r0
+  103fa4:	e1a01005 	mov	r1, r5
+  103fa8:	eb002c2e 	bl	0x10f068
+  103fac:	e59f8140 	ldr	r8, [pc, #320]	@ 0x1040f4
+  103fb0:	e3500000 	cmp	r0, #0
+  103fb4:	1a000004 	bne	0x103fcc
+  103fb8:	e1a03005 	mov	r3, r5
+  103fbc:	e1a02008 	mov	r2, r8
+  103fc0:	e3a010db 	mov	r1, #219	@ 0xdb
+  103fc4:	e28f0f4b 	add	r0, pc, #300	@ 0x12c
+  103fc8:	ebffffaf 	bl	0x103e8c
+  103fcc:	e5941014 	ldr	r1, [r4, #20]
+  103fd0:	e1a00007 	mov	r0, r7
+  103fd4:	eb002c23 	bl	0x10f068
+  103fd8:	e3500000 	cmp	r0, #0
+  103fdc:	1a000004 	bne	0x103ff4
+  103fe0:	e5943014 	ldr	r3, [r4, #20]
+  103fe4:	e1a02008 	mov	r2, r8
+  103fe8:	e3a010e1 	mov	r1, #225	@ 0xe1
+  103fec:	e28f0f41 	add	r0, pc, #260	@ 0x104
+  103ff0:	ebffffa5 	bl	0x103e8c
+  103ff4:	e59f0118 	ldr	r0, [pc, #280]	@ 0x104114
+  103ff8:	e5900018 	ldr	r0, [r0, #24]
+  103ffc:	e12fff30 	blx	r0
+  104000:	e3500000 	cmp	r0, #0
+  104004:	1a000004 	bne	0x10401c
+  104008:	e3a03901 	mov	r3, #16384	@ 0x4000
+  10400c:	e1a02008 	mov	r2, r8
+  104010:	e3a010e5 	mov	r1, #229	@ 0xe5
+  104014:	e28f00dc 	add	r0, pc, #220	@ 0xdc
+  104018:	ebffff9b 	bl	0x103e8c
+  10401c:	e59f00f4 	ldr	r0, [pc, #244]	@ 0x104118
+  104020:	e5941020 	ldr	r1, [r4, #32]
+  104024:	eb002c0f 	bl	0x10f068
+  104028:	e3500000 	cmp	r0, #0
+  10402c:	1a000004 	bne	0x104044
+  104030:	e5943020 	ldr	r3, [r4, #32]
+  104034:	e1a02008 	mov	r2, r8
+  104038:	e3a010eb 	mov	r1, #235	@ 0xeb
+  10403c:	e28f00b4 	add	r0, pc, #180	@ 0xb4
+  104040:	ebffff91 	bl	0x103e8c
+  104044:	e59f00d0 	ldr	r0, [pc, #208]	@ 0x10411c
+  104048:	e3a01a0f 	mov	r1, #61440	@ 0xf000
+  10404c:	eb002c05 	bl	0x10f068
+  104050:	e3500000 	cmp	r0, #0
+  104054:	1a000004 	bne	0x10406c
+  104058:	e3a03a0f 	mov	r3, #61440	@ 0xf000
+  10405c:	e1a02008 	mov	r2, r8
+  104060:	e3a010f1 	mov	r1, #241	@ 0xf1
+  104064:	e28f008c 	add	r0, pc, #140	@ 0x8c
+  104068:	ebffff87 	bl	0x103e8c
+  10406c:	e59f10b0 	ldr	r1, [pc, #176]	@ 0x104124
+  104070:	e59f20b0 	ldr	r2, [pc, #176]	@ 0x104128
+  104074:	e59f00a4 	ldr	r0, [pc, #164]	@ 0x104120
+  104078:	e5911000 	ldr	r1, [r1]
+  10407c:	e5922000 	ldr	r2, [r2]
+  104080:	e5900000 	ldr	r0, [r0]
+  104084:	e0814002 	add	r4, r1, r2
+  104088:	e1a01004 	mov	r1, r4
+  10408c:	eb002bf5 	bl	0x10f068
+  104090:	e3500000 	cmp	r0, #0
+  104094:	1a000004 	bne	0x1040ac
+  104098:	e1a03004 	mov	r3, r4
+  10409c:	e1a02008 	mov	r2, r8
+  1040a0:	e3a010f9 	mov	r1, #249	@ 0xf9
+  1040a4:	e28f004c 	add	r0, pc, #76	@ 0x4c
+  1040a8:	ebffff77 	bl	0x103e8c
+  1040ac:	e59f0078 	ldr	r0, [pc, #120]	@ 0x10412c
+  1040b0:	e2801b01 	add	r1, r0, #1024	@ 0x400
+  1040b4:	e4806004 	str	r6, [r0], #4
+  1040b8:	e1500001 	cmp	r0, r1
+  1040bc:	3afffffc 	bcc	0x1040b4
+  1040c0:	e3a00302 	mov	r0, #134217728	@ 0x8000000
+  1040c4:	e2801a03 	add	r1, r0, #12288	@ 0x3000
+  1040c8:	e4806004 	str	r6, [r0], #4
+  1040cc:	e1500001 	cmp	r0, r1
+  1040d0:	3afffffc 	bcc	0x1040c8
+  1040d4:	e8bd47f0 	pop	{r4, r5, r6, r7, r8, r9, sl, lr}
+  1040d8:	eafff05e 	b	0x100258
+
+msm8953/evidence/pbl_0x100000.bin:     file format binary
+
+Disassembly of section .data:
+
+0010f000 <.data+0xf000>:
+  10f000:	e92d47f0 	push	{r4, r5, r6, r7, r8, r9, sl, lr}
+  10f004:	e1a08000 	mov	r8, r0
+  10f008:	e1a09001 	mov	r9, r1
+  10f00c:	e1a0a002 	mov	sl, r2
+  10f010:	e35a0020 	cmp	sl, #32
+  10f014:	aa000005 	bge	0x10f030
+  10f018:	e35a0004 	cmp	sl, #4
+  10f01c:	aa000007 	bge	0x10f040
+  10f020:	e35a0000 	cmp	sl, #0
+  10f024:	ca000009 	bgt	0x10f050
+  10f028:	e3a00001 	mov	r0, #1
+  10f02c:	e8bd87f0 	pop	{r4, r5, r6, r7, r8, r9, sl, pc}
+  10f030:	e8b900ff 	ldm	r9!, {r0, r1, r2, r3, r4, r5, r6, r7}
+  10f034:	e8a800ff 	stmia	r8!, {r0, r1, r2, r3, r4, r5, r6, r7}
+  10f038:	e24aa020 	sub	sl, sl, #32
+  10f03c:	eafffff3 	b	0x10f010
+  10f040:	e8b90001 	ldm	r9!, {r0}
+  10f044:	e8a80001 	stmia	r8!, {r0}
+  10f048:	e24aa004 	sub	sl, sl, #4
+  10f04c:	eafffff1 	b	0x10f018
+  10f050:	e4d90001 	ldrb	r0, [r9], #1
+  10f054:	e4c80001 	strb	r0, [r8], #1
+  10f058:	e24aa001 	sub	sl, sl, #1
+  10f05c:	e35a0000 	cmp	sl, #0
+  10f060:	cafffffa 	bgt	0x10f050
+  10f064:	daffffef 	ble	0x10f028
+
+msm8953/evidence/pbl_0x100000.bin:     file format binary
+
+Disassembly of section .data:
+
+0010f38c <.data+0xf38c>:
+  10f38c:	e3a00aa6 	mov	r0, #679936	@ 0xa6000
+  10f390:	e5900018 	ldr	r0, [r0, #24]
+  10f394:	e7e00e50 	ubfx	r0, r0, #28, #1
+  10f398:	e12fff1e 	bx	lr
+
+Conclusions:
+4820 vector-rooted A32 instructions;82 call-target candidates,one unsupported Thumb target included. These are NOT82 proved functions.19,296 code bytes include separately audited16-byte bit helper;1,104 observed ROM literal/table bytes;77,826 bytes remain unknown/unvisited.28 unresolved non-return indirect calls and2jumps remain. Raw constants are not followed as pointers.
+
+Conclusions:
+The104-byte copy routine has7discovered direct callers,balanced32-byte frame,signed count and no calls.0x10f054 is its interior STRB,not an entry. The16-byte bit reader has no caller under resolved rooted edges and is marked audit-only. Compiler-byte agreement does not establish boot reachability.
+
+Conclusions:
+Error handler0x103e8c pushes32 on incoming SP then calls0x1002dc to replaceSP with0x2053e0. FinalPOP writes LR,notPC,from replacement stack; B0x100258 zeroes registers/SP and self-loops.97discovered terminalBL calls and9tail branches do not receive normal-return continuations. BLX0x103ffc and arbitrary nonlocal/hardware behavior remain unproved. Caller epilogues can belong to success bypasses,not terminal-call returns.
+
+Conclusions:
+Single acceptance command now also checks retained map and5map negatives, in addition to8source/ROM negatives and both exact byte gates. Snapshot checking is explicitly not an independent disassembler. Capstone regeneration was compared byte-for-byte with retained artifacts.
