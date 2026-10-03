@@ -1,0 +1,277 @@
+Offline MSM8953 capture audit and namespaced-gate validation
+
+Repository: bootromancy; namespace msm8953/. Original input repository msm8953FirmwareReversing commit e31398f16a07d4debd7dd3cff49842891a304059; its imported gate commit here is 1b1e03d25ae76005905b5e28e93dfe7d2a0c7fb2.
+
+Inputs: PBL SHA256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7,98226 bytes; programmer SHA256 fc3df4df9472cfec21ecba444cf324df79da8e7d0732611b3ff96ff2c35da80d,399552 bytes. Programmer recovered unchanged from already tracked source-repository blob; no acquisition/download.
+
+Commands: python3 msm8953/reconstruction/check.py; python3 msm8953/reconstruction/capture_audit.py; arm-none-eabi-readelf -l (programmer); git diff --check.
+
+Namespaced gate run:
+PASS ROM identity: 98226 bytes, sha256 ee1a713ce81997e8351f407174929b336468a6d1cd4058b06585b4abb605cbe7
+arm-none-eabi-gcc (Fedora 15.2.0-5.fc45) 15.2.0
+GNU assembler (Fedora 2.45-4.fc45) 2.45
+GNU ld (Fedora 2.45-4.fc45) 2.45
+GNU objcopy (Fedora 2.45-4.fc45) 2.45
+PASS asm: 104 exact bytes at 0x0010f000, sha256 cc708aaf7651e74b6f5f818063d486953b964ee5f2873ab3ef2859f2f8c7fbfb
+PASS c: 16 exact bytes at 0x0010f38c, sha256 51e871700860550d8c0292d500a5135b9aa791dfb36338c2a693a0818468e6c6
+PASS rejected compiled mutation: asm-wrong-return: 104 bytes, expected 104; first difference at slice +0x28
+PASS rejected compiled mutation: asm-inverted-condition: 104 bytes, expected 104; first difference at slice +0x17
+PASS rejected compiled mutation: c-wrong-mask: 16 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-inverted-condition: 20 bytes, expected 16; first difference at slice +0xc
+PASS rejected compiled mutation: c-wrong-return: 20 bytes, expected 16; first difference at slice +0x8
+PASS rejected compiled mutation: c-wrong-mmio: 16 bytes, expected 16; first difference at slice +0x4
+PASS rejected changed ROM byte
+PASS rejected truncated ROM
+PASS all offline byte gates and 8 negative controls; artifacts: /var/home/sam/src/bootromancy/.delta/worktrees/z249esxw4ga5/bootromancy/msm8953/reconstruction/build
+
+Independent command-line controls (wrong valid C, modified/truncated ROM, invalid UTF8 C/asm, syntax error C). Each used a separate artifact directory and required exit1, FAIL, no traceback; syntax failure never counted as a passing mutation.
+PASS CLI wrong-c: exit 1, clean FAIL, no traceback
+PASS CLI changed-rom: exit 1, clean FAIL, no traceback
+PASS CLI truncated-rom: exit 1, clean FAIL, no traceback
+PASS CLI bad-utf8-c: exit 1, clean FAIL, no traceback
+PASS CLI bad-utf8-asm: exit 1, clean FAIL, no traceback
+PASS CLI syntax-error-c: exit 1, clean FAIL, no traceback
+
+Review: independent reviewer found no gate logic/contract defects and reproduced raw-slice hashes/disassembly. Fixed clean diagnostics for invalid UTF8 source. Reviewer could not see Git notes because isolated clone did not inherit refs/notes/evidence; parent notes existed. Notes now explicitly synced to filesystem local remote, no default branch or GitHub remote touched.
+
+Acquisition/identity audit output (Capstone inspection; no emulator or ARM execution):
+Capstone 5.0.7; both input identities verified
+programmer sha256 fc3df4df9472cfec21ecba444cf324df79da8e7d0732611b3ff96ff2c35da80d
+ROM length=98226 (0x17fb2), mod4=2
+last nonzero=0x173dc; zero bytes after it=3029
+divmod(length, 102)=(963, 0)
+divmod(0x18000, 102)=(963, 78)
+final referenced word=aa 00 00 00; subsequent zero bytes=3026, all zero=True
+model-label search '8953': {'ascii': -1, 'utf-16le': -1, 'utf-16be': -1} (-1 means absent)
+model-label search '8917': {'ascii': -1, 'utf-16le': -1, 'utf-16be': -1} (-1 means absent)
+model-label search '625': {'ascii': -1, 'utf-16le': -1, 'utf-16be': -1} (-1 means absent)
+model-label search '425': {'ascii': -1, 'utf-16le': -1, 'utf-16be': -1} (-1 means absent)
+USB descriptor: 3e 03 Qualcomm CDMA Technologies MSM
+certificate token: b'HW_ID\x00'
+peek format: b'0x%02X \x00'
+ROM table [0xd5b8, 0xd5e0): 80 d6 10 00 b0 34 00 08 74 00 00 00 24 35 00 08 5c 0c 00 00 08 d6 10 00 00 30 00 08 78 00 00 00 78 30 00 08 38 04 00 00
+ROM table [0x159b0, 0x159c4): c4 59 11 00 3c 56 20 00 ec 02 00 00 28 59 20 00 f8 3a 00 00
+ROM table [0x173bc, 0x173e0): 00 10 82 01 00 50 84 01 01 00 00 00 02 00 00 00 01 00 00 00 01 00 00 00 29 00 00 00 00 00 00 aa aa 00 00 00
+inspected data word at file 0x7bd0: 0x0010d3b6
+inspected data word at file 0xb65c: 0x0010d436
+inspected data word at file 0x15c60: 0x00205878
+inspected data word at file 0x16bf4: 0x001173bc
+
+PBL (ARM): file [0xb59c, 0xb65c), VA 0x0010b59c
+00b59c 0010b59c f0402de9 push      {r4, r5, r6, r7, lr}
+00b5a0 0010b5a0 0240b0e1 movs      r4, r2
+00b5a4 0010b5a4 00005113 cmpne     r1, #0
+00b5a8 0010b5a8 0cd04de2 sub       sp, sp, #0xc
+00b5ac 0010b5ac 00005013 cmpne     r0, #0
+00b5b0 0010b5b0 0020a0e3 mov       r2, #0
+00b5b4 0010b5b4 0260a0e1 mov       r6, r2
+00b5b8 0010b5b8 0200a003 moveq     r0, #2
+00b5bc 0010b5bc 00208de5 str       r2, [sp]
+00b5c0 0010b5c0 2100000a beq       #0x10b64c
+00b5c4 0010b5c4 a67aa0e3 mov       r7, #0xa6000
+00b5c8 0010b5c8 7c3097e5 ldr       r3, [r7, #0x7c]
+00b5cc 0010b5cc 00c0a0e3 mov       ip, #0
+00b5d0 0010b5d0 005187e0 add       r5, r7, r0, lsl #2
+00b5d4 0010b5d4 0f32c3e3 bic       r3, r3, #0xf0000000
+00b5d8 0010b5d8 003084e5 str       r3, [r4]
+00b5dc 0010b5dc 04c084e5 str       ip, [r4, #4]
+00b5e0 0010b5e0 f020c4e1 strd      r2, r3, [r4]
+00b5e4 0010b5e4 0130a0e1 mov       r3, r1
+00b5e8 0010b5e8 04208de5 str       r2, [sp, #4]
+00b5ec 0010b5ec 300095e5 ldr       r0, [r5, #0x30]
+00b5f0 0010b5f0 5004e0e7 ubfx      r0, r0, #8, #1
+00b5f4 0010b5f4 000050e3 cmp       r0, #0
+00b5f8 0010b5f8 0108a003 moveq     r0, #0x10000
+00b5fc 0010b5fc 0b00000a beq       #0x10b630
+00b600 0010b600 54109fe5 ldr       r1, [pc, #0x54]
+00b604 0010b604 2020a0e3 mov       r2, #0x20
+00b608 0010b608 0300a0e1 mov       r0, r3
+00b60c 0010b60c b10e00eb bl        #0x10f0d8
+00b610 0010b610 000050e3 cmp       r0, #0
+00b614 0010b614 0e00000a beq       #0x10b654
+00b618 0010b618 300095e5 ldr       r0, [r5, #0x30]
+00b61c 0010b61c 5003e0e7 ubfx      r0, r0, #6, #1
+00b620 0010b620 000050e3 cmp       r0, #0
+00b624 0010b624 04008de5 str       r0, [sp, #4]
+00b628 0010b628 a8009715 ldrne     r0, [r7, #0xa8]
+00b62c 0010b62c 0800000a beq       #0x10b654
+00b630 0010b630 00008de5 str       r0, [sp]
+00b634 0010b634 001094e5 ldr       r1, [r4]
+00b638 0010b638 042094e5 ldr       r2, [r4, #4]
+00b63c 0010b63c 001081e1 orr       r1, r1, r0
+00b640 0010b640 0600a0e1 mov       r0, r6
+00b644 0010b644 001084e5 str       r1, [r4]
+00b648 0010b648 042084e5 str       r2, [r4, #4]
+00b64c 0010b64c 0cd08de2 add       sp, sp, #0xc
+00b650 0010b650 f080bde8 pop       {r4, r5, r6, r7, pc}
+00b654 0010b654 800097e5 ldr       r0, [r7, #0x80]
+00b658 0010b658 f4ffffea b         #0x10b630
+
+PBL (ARM): file [0x3270, 0x3280), VA 0x00103270
+003270 00103270 38109fe5 ldr       r1, [pc, #0x38]
+003274 00103274 0400a0e1 mov       r0, r4
+003278 00103278 c72000eb bl        #0x10b59c
+00327c 0010327c 000050e3 cmp       r0, #0
+
+PBL (ARM): file [0xacc8, 0xacdc), VA 0x0010acc8
+00acc8 0010acc8 202086e2 add       r2, r6, #0x20
+00accc 0010accc 0610a0e1 mov       r1, r6
+00acd0 0010acd0 0800a0e1 mov       r0, r8
+00acd4 0010acd4 300200eb bl        #0x10b59c
+00acd8 0010acd8 0010b0e1 movs      r1, r0
+
+PBL (ARM): file [0x7654, 0x7668), VA 0x00107654
+007654 00107654 0520a0e3 mov       r2, #5
+007658 00107658 70159fe5 ldr       r1, [pc, #0x570]
+00765c 0010765c 0600a0e1 mov       r0, r6
+007660 00107660 9c1e00eb bl        #0x10f0d8
+007664 00107664 000050e3 cmp       r0, #0
+
+PBL (ARM): file [0x16b7c, 0x16b84), VA 0x00116b7c
+016b7c 00116b7c 70009fe5 ldr       r0, [pc, #0x70]
+016b80 00116b80 1e0000eb bl        #0x116c00
+
+PBL (ARM): file [0x16c5c, 0x16c74), VA 0x00116c5c
+016c5c 00116c5c 181090e5 ldr       r1, [r0, #0x18]
+016c60 00116c60 041085e5 str       r1, [r5, #4]
+016c64 00116c64 1c1090e5 ldr       r1, [r0, #0x1c]
+016c68 00116c68 081085e5 str       r1, [r5, #8]
+016c6c 00116c6c 201090e5 ldr       r1, [r0, #0x20]
+016c70 00116c70 0c1085e5 str       r1, [r5, #0xc]
+
+PBL (ARM): file [0x3b38, 0x3c18), VA 0x00103b38
+003b38 00103b38 d8009fe5 ldr       r0, [pc, #0xd8]
+003b3c 00103b3c 70402de9 push      {r4, r5, r6, lr}
+003b40 00103b40 001090e5 ldr       r1, [r0]
+003b44 00103b44 d0009fe5 ldr       r0, [pc, #0xd0]
+003b48 00103b48 d0409fe5 ldr       r4, [pc, #0xd0]
+003b4c 00103b4c 000090e5 ldr       r0, [r0]
+003b50 00103b50 002094e5 ldr       r2, [r4]
+003b54 00103b54 292d00eb bl        #0x10f000
+003b58 00103b58 000050e3 cmp       r0, #0
+003b5c 00103b5c 0400001a bne       #0x103b74
+003b60 00103b60 003094e5 ldr       r3, [r4]
+003b64 00103b64 412ba0e3 mov       r2, #0x10400
+003b68 00103b68 5210a0e3 mov       r1, #0x52
+003b6c 00103b6c b0008fe2 add       r0, pc, #0xb0
+003b70 00103b70 c50000eb bl        #0x103e8c
+003b74 00103b74 c0009fe5 ldr       r0, [pc, #0xc0]
+003b78 00103b78 c0409fe5 ldr       r4, [pc, #0xc0]
+003b7c 00103b7c 000090e5 ldr       r0, [r0]
+003b80 00103b80 001094e5 ldr       r1, [r4]
+003b84 00103b84 372d00eb bl        #0x10f068
+003b88 00103b88 b4509fe5 ldr       r5, [pc, #0xb4]
+003b8c 00103b8c 000050e3 cmp       r0, #0
+003b90 00103b90 0400001a bne       #0x103ba8
+003b94 00103b94 003094e5 ldr       r3, [r4]
+003b98 00103b98 0520a0e1 mov       r2, r5
+003b9c 00103b9c 5910a0e3 mov       r1, #0x59
+003ba0 00103ba0 7c008fe2 add       r0, pc, #0x7c
+003ba4 00103ba4 b80000eb bl        #0x103e8c
+003ba8 00103ba8 98009fe5 ldr       r0, [pc, #0x98]
+003bac 00103bac 9c409fe5 ldr       r4, [pc, #0x9c]
+003bb0 00103bb0 001090e5 ldr       r1, [r0]
+003bb4 00103bb4 90009fe5 ldr       r0, [pc, #0x90]
+003bb8 00103bb8 002094e5 ldr       r2, [r4]
+003bbc 00103bbc 000090e5 ldr       r0, [r0]
+003bc0 00103bc0 0e2d00eb bl        #0x10f000
+003bc4 00103bc4 000050e3 cmp       r0, #0
+003bc8 00103bc8 0400001a bne       #0x103be0
+003bcc 00103bcc 003094e5 ldr       r3, [r4]
+003bd0 00103bd0 412ba0e3 mov       r2, #0x10400
+003bd4 00103bd4 6010a0e3 mov       r1, #0x60
+003bd8 00103bd8 44008fe2 add       r0, pc, #0x44
+003bdc 00103bdc aa0000eb bl        #0x103e8c
+003be0 00103be0 6c009fe5 ldr       r0, [pc, #0x6c]
+003be4 00103be4 6c409fe5 ldr       r4, [pc, #0x6c]
+003be8 00103be8 000090e5 ldr       r0, [r0]
+003bec 00103bec 001094e5 ldr       r1, [r4]
+003bf0 00103bf0 1c2d00eb bl        #0x10f068
+003bf4 00103bf4 000050e3 cmp       r0, #0
+003bf8 00103bf8 0400001a bne       #0x103c10
+003bfc 00103bfc 003094e5 ldr       r3, [r4]
+003c00 00103c00 0520a0e1 mov       r2, r5
+003c04 00103c04 6710a0e3 mov       r1, #0x67
+003c08 00103c08 14008fe2 add       r0, pc, #0x14
+003c0c 00103c0c 9e0000eb bl        #0x103e8c
+003c10 00103c10 0000a0e3 mov       r0, #0
+003c14 00103c14 7080bde8 pop       {r4, r5, r6, pc}
+
+PBL (ARM): file [0x11da8, 0x11e00), VA 0x00111da8
+011da8 00111da8 50009fe5 ldr       r0, [pc, #0x50]
+011dac 00111dac 10402de9 push      {r4, lr}
+011db0 00111db0 0140a0e3 mov       r4, #1
+011db4 00111db4 002090e5 ldr       r2, [r0]
+011db8 00111db8 000052e3 cmp       r2, #0
+011dbc 00111dbc 0500000a beq       #0x111dd8
+011dc0 00111dc0 3c009fe5 ldr       r0, [pc, #0x3c]
+011dc4 00111dc4 001090e5 ldr       r1, [r0]
+011dc8 00111dc8 38009fe5 ldr       r0, [pc, #0x38]
+011dcc 00111dcc 000090e5 ldr       r0, [r0]
+011dd0 00111dd0 8af4ffeb bl        #0x10f000
+011dd4 00111dd4 0040a0e1 mov       r4, r0
+011dd8 00111dd8 2c009fe5 ldr       r0, [pc, #0x2c]
+011ddc 00111ddc 001090e5 ldr       r1, [r0]
+011de0 00111de0 000051e3 cmp       r1, #0
+011de4 00111de4 0300000a beq       #0x111df8
+011de8 00111de8 20009fe5 ldr       r0, [pc, #0x20]
+011dec 00111dec 000090e5 ldr       r0, [r0]
+011df0 00111df0 9cf4ffeb bl        #0x10f068
+011df4 00111df4 004004e0 and       r4, r4, r0
+011df8 00111df8 0400a0e1 mov       r0, r4
+011dfc 00111dfc 1080bde8 pop       {r4, pc}
+
+programmer (Thumb): file [0x2b1c4, 0x2b1c8), VA 0x0802e1c4
+02b1c4 0802e1c4 4ff0660a mov.w     sl, #0x66
+
+programmer (Thumb): file [0x2b280, 0x2b2e4), VA 0x0802e280
+02b280 0802e280 711e     subs      r1, r6, #1
+02b282 0802e282 47f1ff30 adc       r0, r7, #-1
+02b286 0802e286 0291     str       r1, [sp, #8]
+02b288 0802e288 0390     str       r0, [sp, #0xc]
+02b28a 0802e28a 3da2     adr       r2, #0xf4
+02b28c 0802e28c 0098     ldr       r0, [sp]
+02b28e 0802e28e 4ff40071 mov.w     r1, #0x200
+02b292 0802e292 035d     ldrb      r3, [r0, r4]
+02b294 0802e294 06a8     add       r0, sp, #0x18
+02b296 0802e296 d8f70bf9 bl        #0x80064b0
+02b29a 0802e29a 4ff40072 mov.w     r2, #0x200
+02b29e 0802e29e 06a9     add       r1, sp, #0x18
+02b2a0 0802e2a0 86a8     add       r0, sp, #0x218
+02b2a2 0802e2a2 1ff095fb bl        #0x804d9d0
+02b2a6 0802e2a6 601c     adds      r0, r4, #1
+02b2a8 0802e2a8 5246     mov       r2, sl
+02b2aa 0802e2aa 45f10001 adc       r1, r5, #0
+02b2ae 0802e2ae 8046     mov       r8, r0
+02b2b0 0802e2b0 8946     mov       sb, r1
+02b2b2 0802e2b2 5b46     mov       r3, fp
+02b2b4 0802e2b4 d7f718ef blx       #0x80060e8
+02b2b8 0802e2b8 52ea0300 orrs.w    r0, r2, r3
+02b2bc 0802e2bc 05d0     beq       #0x802e2ca
+02b2be 0802e2be 0298     ldr       r0, [sp, #8]
+02b2c0 0802e2c0 0399     ldr       r1, [sp, #0xc]
+02b2c2 0802e2c2 6040     eors      r0, r4
+02b2c4 0802e2c4 6940     eors      r1, r5
+02b2c6 0802e2c6 0843     orrs      r0, r1
+02b2c8 0802e2c8 06d1     bne       #0x802e2d8
+02b2ca 0802e2ca 86a9     add       r1, sp, #0x218
+02b2cc 0802e2cc 2ea0     adr       r0, #0xb8
+02b2ce 0802e2ce 04f065f8 bl        #0x803239c
+02b2d2 0802e2d2 0020     movs      r0, #0
+02b2d4 0802e2d4 8df81802 strb.w    r0, [sp, #0x218]
+02b2d8 0802e2d8 4446     mov       r4, r8
+02b2da 0802e2da 4d46     mov       r5, sb
+02b2dc 0802e2dc a01b     subs      r0, r4, r6
+02b2de 0802e2de 75eb0700 sbcs.w    r0, r5, r7
+02b2e2 0802e2e2 d2d3     blo       #0x802e28a
+
+No complete-ROM or static numeric SoC-ID conclusion follows from this audit.
+
+Interpretation and limits:
+98226 is 963 complete102-byte peek log chunks; a98304-byte request minus78 final bytes is a plausible host collection/parsing explanation, not established acquisition history. Device programmer emits final partial chunks too. Host implementation/version and transaction log absent; completeness/deliberate trim unresolved. No file repair applied.
+
+Interpretation and limits:
+Last nonzero byte offset173dc belongs to a fully present table word ending173e0. Initialization-copy spans inspected fit. Numeric beyond-EOF error tags and length bounds are not pointers.
+
+Interpretation and limits:
+ROM builds auth HW_ID from runtime reads at a607c(mask0fffffff),a6080/a60a8 and config-dependent10000. No static unique8953/8917 ID found. Sahara460e1 is a historical claim in the other repository, not a ROM constant. MSM8953 attribution retained as capture provenance, not independently recovered static chip ID.
