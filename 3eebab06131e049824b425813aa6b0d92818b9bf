@@ -89,3 +89,43 @@ Validation after the documentation clarification:
 The ROM, symbol map and tooling behavior are unchanged. Evidence/source
 inspection, not keyword filtering or unverified agent summaries, decided
 which claims entered the atlas.
+
+## Git history and evidence recovery
+
+A later managed checkout arrived as a shallow snapshot of3eebab0, with its
+parent341ffac and earlier ancestors absent. The managed local remote likewise
+contained only a refs/delta/... pointer to3eebab0; the original source checkout
+was unavailable on this machine. refs/notes/evidence was absent. GitHub rejected
+push with 'did not receive expected object341ffacead5f26a60b269bff3dbfbcb7fe97105c'.
+The file tree and original ROM hash were intact.
+
+Recovered the exact original objects, not replacement commits: reconstructed
+the three prior trees from the recorded changes, reused the recorded commit
+messages/identities, and checked candidate timestamps against the known SHA1
+commit IDs. Only exact matches were written:
+  d841c0859509674beb8c91ccef6a03d2a6c9759c timestamp1790903525
+  76778f8fbdf17d1157173d4be7723d74d82158cd timestamp1790903933
+  341ffacead5f26a60b269bff3dbfbcb7fe97105c timestamp1790905526
+HEAD3eebab06131e049824b425813aa6b0d92818b9bf and tree
+5e52400fd32c2b18897a2c7b966cf4133d40c3b2 remained unchanged.
+
+Created an ignored temporary bare recovery source using the now-complete object
+store, then used git fetch --unshallow from it. rev-parse --is-shallow-repository
+is now false; log shows all4 original commits; fsck finds no missing objects.
+The only dangling object reported is the empty tree generated for comparison.
+No force-push, rebase, replacement history or working-file changes were used.
+
+Restored evidence contents from the recorded note-creation commands in this
+conversation. Two original note blob IDs were available and matched exactly:
+  import76778f8 ->8ca60617ea814e3a577b50fe4abf98c4b7526824
+  analysis341ffac ->502e8856a6578007f541b9b10f1cf01538e5d63c
+The earlier reconciliation text above was restored from its recorded contents;
+its old blob ID was not recorded, so no exact-hash comparison is claimed for it.
+The notes-ref commit history is newly created; this is restoration of note
+contents, not reconstruction of the original notes-ref history.
+
+The repaired feature push advanced past object validation but GitHub then
+rejected the new workflow file because the HTTPS OAuth credential lacks the
+workflow scope. No alternate credential or scope workaround was used, and
+main was not created or updated. A verified full-history bundle and restored
+note text are retained in out/git-recovery/ on this machine.
