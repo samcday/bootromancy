@@ -1,0 +1,44 @@
+Validation evidence for commit 835a1ec (Reconstruct the MSM8930 bignum loader byte-for-byte)
+
+Environment: Fedora host, arm-none-eabi binutils 2.45, no execution of the compiled artifact.
+
+Gate transcript (make reconstruction / check.py):
+-------------------------------------------------
+$(cat /tmp/opencode/gate_transcript.txt)
+
+Reconstruction provenance
+-------------------------
+Source ROM: targets/msm8930-r1.2/pbl.bin
+  sha256 c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+  (identical to the dump recorded in TARGETID-LOADER-NOTES.md, pbl-lab,
+  acquired 2026-10-01 from Samsung Galaxy Express GT-I8730, MSM8930 soc_id 116 rev 1.2,
+  read via /dev/mem at physical 0x0, two byte-identical reads)
+
+Reconstructed range: 0x4554..0x45FF inclusive (172 bytes = 43 ARM words).
+Method: manual instruction transcription from the disassembled ROM slice
+  (capstone 5.0.x listing from tools/rom.py disasm + cross-checked with pbl-lab
+  idx.raw dumps), assembled with arm-none-eabi-as -mcpu=arm7tdmi -EL and linked
+  at -Ttext=0x4554; objcopy -O binary compared whole-file against
+  ROM[0x4554:0x4600]. No trimming, masking or post-patch of the comparison.
+
+Non-relocatable encodings pinned as .word in the source, by ROM evidence:
+  .word 0xEB000142  @ 0x45a8: bl 0x4ab8 (bignum context alloc)
+  .word 0xEBFFF7C3  @ 0x45c8: bl 0x24dc (byte accessor used for every byte load)
+  .word 0xDA000150  @ 0x4570: ble 0x4ab8 (len<=0 path calls alloc(1,0) directly)
+  .word 0xA25CC001  @ 0x4594: subsge ip, ip, #1 (limb-count overflow decrement)
+  .word 0xEAFFFFEE  @ 0x45fc: b return_zero (tail-duplicated epilogue)
+Reason: gas -mcpu=arm7tdmi emits veneers for absolute branches to externally
+  defined absolute symbols; every other encoding folds strictly from source.
+
+Behaviour significance (from the pbl-lab analysis of the same ROM):
+  - function consumes (ptr r0, byte len r1), ingesting len bytes into limb
+    storage; returns NULL when the ceil(len/4) limb count exceeds 0x100 limbs
+    (0x45b8 return_zero path; ip decrement at 0x4594).
+  - len == 0 returns a fresh count-0 bignum, NOT an error (0x4564..0x4570).
+  - The caller chain (per-certificate verify at 0xbdac per-row state blocks
+    [fp+0x2f4]/[fp+0x2f8]; image-signature verify at 0xf840) feeds the byte
+    count parsed from the image and relies on this loader verbatim.
+  - Negative gate: ROM slice compares equal only to the exact reconstruction.
+
+Part-2 follow-ups queued (not part of this commit): 0xbdf8 window gate,
+0x4c18 modexp entry, 0xbf2c..0xbf98 digest compare, emulator replay equivalence.
