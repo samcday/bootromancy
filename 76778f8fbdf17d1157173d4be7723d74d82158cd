@@ -1,0 +1,37 @@
+# Import of the verified MSM8930 revision 1.2 PBL
+
+Repository: https://github.com/samcday/bootromancy
+Commit: 76778f8fbdf17d1157173d4be7723d74d82158cd
+Artifact: targets/msm8930-r1.2/pbl.bin
+Size: 131072 bytes; physical/link base0; captured interval[0,0x20000).
+SHA256: c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+Git blob: d2e7c64396f02cc79eb79d19d27656141cbce400
+
+Copied byte-for-byte from the attached pocketboot worktree's canonical
+acquisition file under target/pbl-lab/. Rechecked SHA256 and size before and
+after import; ordinary Git binary storage, no LFS and no padding removal.
+The user explicitly requested including/sharing this artifact in the new
+repository. That instruction is not a Qualcomm redistribution license;
+NOTICE.md and the manifest preserve that distinction and the original
+QUALCOMM COPYRIGHT 2011 notice. No project license was imposed on the ROM.
+
+Original acquisition: 2026-10-01 UTC, Samsung Galaxy Express GT-I8730,
+MSM8930 soc_id116 revision1.2, stock bootloader I8730XWANE1. RAM-booted
+Pocketboot kernel7.1.0-rc3-pbl with read-only /dev/mem mapping; aligned volatile
+32-bit loads; two complete byte-identical reads and independently agreeing
+word/page prefixes. No EDL programmer, TrustZone exploit or flash-writing
+command was used. Persistent BOOT readback stayed identical; phone returned
+to its original Pocketboot kernel with ADB/fastboot working.
+
+Full original commands/build identities/transport incidents/restoration:
+  repository https://github.com/samcday/pocketboot
+  refs/notes/evidence on4b7685eac406948aed645f2f4377649af3b3b28e
+  reader commit fc27b695f5bf04d5b567c3d6172601c98326deaf
+  kernel samcday/linux commit3bc07d096bddd33218b8c13b9fa30ffdaba3c050
+The target manifest copies the relevant stable provenance fields.
+
+The captured contents identify Qualcomm BOOT ROM2.0/QHSUSB02.02.07 through
+strings and coherent ARM startup/loading code. All bytes from0x12574 to
+0x20000 are zero. Repetition establishes repeatability, not independent proof
+of mask-ROM backing, absence of an alias/mirror, or complete SoC-ROM coverage.
+No new hardware operation was performed for this repository import.

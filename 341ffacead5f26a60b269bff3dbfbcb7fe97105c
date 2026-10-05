@@ -1,0 +1,200 @@
+# MSM8930 reset-to-SBL first-pass evidence
+
+Repository: https://github.com/samcday/bootromancy
+Commit: 341ffacead5f26a60b269bff3dbfbcb7fe97105c
+Artifact: targets/msm8930-r1.2/pbl.bin,131072 bytes, base0
+SHA256 c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+Import/provenance note:76778f8fbdf17d1157173d4be7723d74d82158cd in this repo.
+Acquisition note: samcday/pocketboot refs/notes/evidence on4b7685eac406948aed645f2f4377649af3b3b28e.
+
+Scope: offline static analysis only. No firmware execution, device access,
+MMIO probe, fuse read, exploit search or bypass construction was performed.
+Confidence marks refer to static interpretations; names are analyst-assigned.
+
+## Reproduction and tests
+
+Python3.14.6 (GCC13.3.0), Capstone5.0.7. Clean .venv, dependency installed from
+requirements.txt with cache/temp files inside ignored out/.
+  python3 -m venv .venv
+  .venv/bin/python -m pip install -r requirements.txt
+  make PYTHON=.venv/bin/python check listings
+Result: verified52 symbols and80 exact byte anchors;55 tests pass.
+  kinds:40 function,4 label,8 data
+  confidence:37 observed,14 inferred,1 candidate
+Repeated `make listings`; every generated file had the same SHA256 on the
+second run. Git diff --check passed. Selected outputs remain in ignored
+out/msm8930-r1.2; no generated full-ROM listing is committed.
+
+Tests check wrong/truncated artifacts, stale anchors, schema/identity,
+address/length/alignment, little-endian words, reset/direct-call and PC-literal
+annotation, invalid-instruction continuation, TSV and ASCII outputs. Every
+CLI operation validates artifact and anchors before output. These tests do
+NOT prove the semantic prose or execute the PBL; manual control/data-flow
+inspection and independent analysis provided that evidence.
+
+The word at0x11f44 is a copy length0x20, numerically equal to reset entry0x20.
+An initial tool implementation displayed such matches as pointers. Corrected
+all raw-word/literal matches to explicit numeric matches; the real-target
+regression covers this ambiguity. Direct branch/call targets still use arrows.
+
+## Reset and memory setup
+
+All addresses below are hexadecimal when prefixed0x. Instruction words are
+shown as 32-bit values, not file byte order.
+  0x0000 ea000006 B0x20
+  0x0020 e321f0d1 MSR CPSR_c,#0xd1; banked FIQ registers retain incomingr0-r2
+  0x0034..0x0080 early RMWs use clock-region literals including902ba4/902ba0/
+    902b80/90214c/902280. Exact bit purposes were not inferred from addresses.
+  0x00ac LDR r0 from literal0x344=0x00706034
+  0x00b0 LDR r1,[r0];0x00b4 TST r1,#1;0x00b8 BNE0xc0
+  0x00bc e3a0f802 MOV pc,#0x20000
+This last instruction is unconditional but reached only when bit0 is clear.
+No actual register value or secure-boot interpretation was established.
+
+The continuing path switches privileged modes and establishes stack state
+around0x2e000.0x184 loads literal0x348=0x8ed0;0x188 BX r0.
+0x8ed0 calls0x8890, which tests bits0x100/0x80 at0x0020002c. True path calls
+0xc1d4 then branches through the RAM word at0x43fe0. False path calls0xbd84
+and branches0x6720. Which path executed on the phone is not traced here.
+
+0xbd84 reads descriptor words at0x11f3c/40/44 and tail-calls0x268:
+  source0x124c0, destination0x43fe0, length0x20
+This only installs default exception targets, not all runtime storage.
+0x268 copies32-byte LDM/STM blocks then4-byte words;0x2bc zeroes similarly.
+Neither is documented as general unaligned byte memcpy/memset.
+
+Boot-main prelude calls0x67d8 then0x9328. The hardware prelude contains a
+conditional terminal halt and further MMIO/timer setup; register meanings
+are incomplete. The later runtime initialization includes:
+  call0x9344 copy0x12050 ->0x20358,len0x64
+  call0x9360 copy0x12050 ->0x201e8,len0
+  call0x9374 zero0x20008,len0x1e0
+  call0x9388 zero0x201e8,len0x170
+  call0x939c zero0x203bc,len0x2ec
+  via0x9428: copy0x12148 ->0x263f0,len0x1b0; copy0x12490 ->0x2a4d0,len0x30;
+    zero0x265a0,len0x4ac; zero0x2a500,len0x1000
+  via0x93dc: copy0x120b4 ->0x206a8,len0x94; zero0x2073c,len0x5cb4
+The0x9388 clear covers shared record, boot context and retained image header.
+
+## Main dispatch and normal handoff
+
+C=0x202a8 (boot context);S=0x20240(shared);H=0x202d8(header);
+A=0x20660(auth context);F=0x203bc(media context). These are referenced RAM,
+not part of the committed capture.
+
+Table0x10ce0 contains24 word slots (slot numbers decimal):
+  0:bb80 2:8208 4:8800 6:61bc 8:8d38 10:7ea0
+  12:8594 14:6ef8 16:bce0 18:8b24 20:5f4c 22:9248
+Every odd slot is zero. Loop instructions:
+  0x6738 e7961104 LDR r1,[r6,r4,LSL#2]
+  0x673c CMP r1,#0;0x6740 BEQ0x6754
+  0x6744 LDR r0,[pc,#0x78] -> literal0x67c4=0x202a8
+  0x6748 MOV lr,pc;0x674c BX r1
+  0x6750 MOV r5,r0;0x6754 CMP r5,#0;0x6758 BNE0x676c
+  0x675c ADD r4,r4,#1;0x6760 CMP r4,#24;0x6764 BCC0x6738
+Thus zeros are skipped, not list terminators. Failure handler receives the
+word-slot index, not the ordinal nonnull callback.
+
+0xbb80 clearsC for0x30 bytes and initializes defaults.0xbbcc dereferences
+ROM0x11f88=0x2a000000;0xbbd0 storesC+8.0xbbe0 storesbase+size-4=0x2a03fffc
+atC+0xc; this is not the inclusive byte endpoint0x2a03ffff.
+Clock profile codes are0x14/0x41 (20/65 decimal), not established MHz values.
+PMIC-related defaults atC+0x20/+0x24 are0x7fffffff/8; do not assumezero.
+
+Normal entry requiresC+0x10==1 andC+0x14!=0. Then:
+  0x67b0 e5b41014 LDR r1,[r4,#0x14]!
+  0x67b4 e5940014 LDR r0,[r4,#0x14]
+  0x67b8 e8bd4070 POP{r4,r5,r6,lr}
+  0x67bc e12fff11 BX r1
+The first is PRE-indexed writeback: r4 advances toC+0x14, making the second
+load readC+0x28. Meaningful handoff:r0=S,r1=selected entry. Frame restored.
+Other register leftovers do not establish extra intentional arguments.
+
+## Media and image-loading boundary
+
+0x6ef8 routes path codes1,2,3,4,14,15,0x101 toSDCC-associated0x7514;
+5,9,16 toSPI-associated0x7aac;13 todownload-associated0x81c0;0x100 triesSDCC
+then download if backend result!=3. Outer media stage verifies the interface
+and reports0.0x81c0 calls0x362c(2), reporting4 if that returns. Complete
+controller/protocol internals and media-offset origins remain deferred.
+
+0x8b24 reads a0x50-byte header via0x719c/F+0x1c. Important instruction anchors:
+  0x8b50 BL0x719c;0x8b5c loadsH+4; comparison against0x73d71034
+  required nonzero fields:H+0x14(source),+0x1c(total),+0x20(code length)
+  total compared with align4(code_length+signature_length+certificate_length)
+  0x8c34 readsH+0x18(destination);0xffffffff selectsC+8
+  0x8c54 BL0x64c4 load-range check
+  0x8c78 BL0x7160/F+0x18 with{1,source,destination,total_length}
+  0x8ca8 BL0x62b0 stores auth inputs, not cryptographic verification
+  0x8cac STR loaded=1 atC+0x10;0x8cb8 STR destination atC+0x14
+The header's destination word is not rewritten on the default path. Header
+signature/certificate pointer words are passed unchanged into auth fields.
+
+0x62f4 STM stores8 words atA+0x18..0x34: code address/length,header address/
+length,signature address/length,certificate address/length.
+Separate callback0x5f4c consults cached policy, calls0xf840 at0x60b8 and
+0xf284 at0x6164. The latter receives both header/code ranges. These callee
+roles are well-supported interpretations, not complete cryptographic contracts.
+Loader header/read failures return4; assertions enter nonreturning recovery.
+Auth status7:certificate-processing failure;0x12:metadata class rejection;
+8:signed-image verification failure. No live policy/fuse state was measured.
+
+## Shared record and independent SBL1 corroboration
+
+0x9248 calls0xbaac,0x7a18,0x6310,0x8ce8 then tail0x8f04.
+0xbad4 loadsS=0x20240;0xbadc STR r4,[r5,#0x28] publishesC.shared.
+Base fields includeconstant0x20200,service pointer0x10d40,constant0x2e000,
+workspace0x201e8/span0x170,profile and hardware-derived values.0x20200 is not
+asserted to be a recovered vendor version identifier.
+Service words:8af4,f840,f284,251c,63b8. Exposed pointer != recovered ABI.
+0x6310 copiesA fields toS+0x28..0x50.0x8d14 storesH=0x202d8 atS+0x54.
+0x8f04..18 copiesC+0x20/+0x24 toS+0x58/+0x5c. Separate0x6aec download export
+can populateS+0x60/+0x64; the traced straight normal path retains their
+initial zeros. Full field table is in boot-flow.md.
+
+External SBL1 evidence, read locally from pocketboot target/pbl-lab/sbl1.bin:
+  131072 bytes
+  SHA25666c583325905cec3c13e357d9051ec909a2bbe80f61ee202048bae87d5538a42
+  File offset0x50 maps to0x2a000000; this extra firmware is NOT imported here.
+Relevant 32-bit instruction words:
+  2a000024 e1a07000 MOV r7,r0
+  2a000068 e1a00007 MOV r0,r7
+  2a00006c ea004450 B2a0111b4
+  2a0111b8 e1a06000 MOV r6,r0
+  2a011238 e1a00006 MOV r0,r6
+  2a01123c eb00003e BL2a01133c
+  2a011348 e1a01000 MOV r1,r0
+  2a01134c e59f0080 LDR r0,[pc,#0x80] ->2a016878
+  2a011350 e3a02068 MOV r2,#0x68
+  2a011354 ebfffe3f BL2a010c58
+The copying helper's aligned backward path usesLDR[r5,#-4]! at2a010d84
+andSTR[r4,#-4]! at2a010d8c. SBL1 preserves incomingr0 and copies0x68 bytes
+from that record. This establishes the104-byte consumer span independently
+of the normal PBL publisher's last store at+0x5c. This external cross-check
+is documented evidence, not an automated test requiring an absent fixture.
+
+## Recovery distinction
+
+0x6cd8 can conditionally call0x63b8 at0x6e2c when0x883c()==0. Do not label
+it unconditional immediate halt.0x63b8 may replay slots14..23 after partial
+runtime/auth reset and selecting mode0x101, unless already retried orcurrent
+path13/0x101. On success:
+  0x6478 e5b71014 LDR r1,[r7,#0x14]!
+  0x647c e5970014 LDR r0,[r7,#0x14]
+  0x6480 e1a0e00f MOV lr,pc
+  0x6484 e12fff11 BX r1
+Meaningful entry/shared registers agree with normal handoff, butLR=0x6488
+and its32-byte frame remain. Skipped retry/image return may enter once-only
+0x251c fallback. Only terminal fallthrough0x6e90 reaches0x1fc, whose register
+clear ends at spin0x230. No claim of which path ran is made.
+
+## Limits
+
+Hash/anchor checks cannot certify semantic names. Full MMIO meanings, clock
+units, selected hardware policy, vendor types, SDCC/USB internals and complete
+crypto contracts are explicitly unresolved. No PBL emulation or execution
+trace was produced. A successful ROM read does not establish that a modified
+SBL1 will authenticate or boot. Firmware rights remain separate from project
+analysis; original notice and full zero suffix are preserved.
+
+Independent offline review completed with no blockers. Reviewer independently decoded about 25 instruction windows, recomputed literal addresses, and verified the 24-slot/12-callback dispatch, writeback-addressed normal handoff, loader/auth separation, statuses/ranges, recovery-vs-halt distinction, shared-record fields and absence of live-policy/CPU-identity overclaims. Its independent boot-main decode matched the tool output byte/mnemonic-wise; make check passed55 tests and listings reproduced. Crypto/controller internals were not reviewed. The SBL1 consumer cross-check was intentionally outside the isolated reviewer snapshot; its exact artifact hash and supporting instructions are recorded earlier in this parent note. The reviewer also saw the precommit snapshot without remotes/notes; in the parent worktree the analysis is committed as341ffacead5f26a60b269bff3dbfbcb7fe97105c and both import/analysis notes exist. Publication remains pending authorization to seed the empty default branch.

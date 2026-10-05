@@ -1,0 +1,339 @@
+# Reconciliation of contradictory structural claims
+
+Repository: samcday/bootromancy
+Commit: 3eebab06131e049824b425813aa6b0d92818b9bf
+Artifact: targets/msm8930-r1.2/pbl.bin,131072 bytes,base0
+SHA256 c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+
+An incoming parallel-analysis summary contradicted the existing map. It was
+not imported wholesale. The following checks used only the already pinned
+ROM and prior acquisition evidence; excluded attack/robustness reports were
+not opened. No hardware interaction occurred.
+
+Commands included tools/rom.py disasm on:
+  0x6cd8 length0x1f0;0x1fc length0x38;0x6bec length0xec
+  0x61bc length0xe0;0x6090 length0x30
+  0xf840 length0x48;0xfa90 length0x80;0xfb10 length0xfc
+  0x869c length0x40;0x86d0 length0x64
+Capstone5.0.7; artifact/80 anchors verified before each CLI operation.
+
+## Error handler does not ordinarily return
+
+0x6cd8's normal control flow may call recovery0x63b8 at0x6e2c. Its terminal
+fallthrough performs cleanup and at0x6e90 executes BL0x1fc (bytesd9e4ffeb).
+0x1fc clearsr0-r12;0x230 contains EAFFFFFE, an unconditional self-loop.
+The apparent POP/BX-LR epilogue at0x6e94/0x6e98 is therefore not reached by an
+ordinary returning path. Neither BL nor a visible epilogue proves a soft check.
+This does not assert a complete anti-rollback policy for every boot path.
+
+The separate logger0x6bec has a genuine returning path at0x6ca8/0x6cac.
+Its default implementation appends24-byte records until count reaches20,
+then returns0 without appending; it does not wrap in the inspected path.
+A registered hook can replace that default path, and invalid input enters
+0x6cd8. The blanket label 'log-and-return' belongs neither to all error
+handling nor to the0x6cd8 routine.
+
+## SRAM ownership is phase-specific
+
+0x6d60 loads literal0x20000;0x6d64..0x6d74 writes the log header including
+capacity0x14. This is compatible with a separately acquired RPM MBN image
+whose header declares load address0x20000. That RPM image's SHA256 is
+157ac0122f3158b298cf735ed7a001cdde1b98d3d635ae33b472c0d4efec58e8, recorded in
+samcday/pocketboot refs/notes/evidence on4b7685eac406948aed645f2f4377649af3b3b28e.
+The header declaration is not an independent trace of its later execution.
+The clear from0x201e8 through0x2c000 at0x6e74 is error cleanup, not proof of
+an undifferentiated normal-startup .data/.bss region.
+
+## The expected comparison reference is caller-supplied
+
+0x60b0: LDR r3,[r4,#4], where r4 is authentication contextA.
+0x60b8: BL0xf840.
+
+0xf840 PUSHes13 registers (r0-r11,lr), subtracting0x34 bytes; incomingr3
+is then at SP+0x0c.0xf844 subtracts another0x44 bytes. Relative to this new
+SP, saved incomingr3 is at SP+0x50, NOT SP+0x0c.
+If entrySP=E: savedr3=E-0x28; currentSP=E-0x78; currentSP+0x50=E-0x28.
+Explicit SP+0x50 accesses in f840..fbd8 are loads atf894,faac,fb58. The
+frame unwinds only atfbb8 (ADDsp,#0x54, then POP9 registers).
+
+0xfb40: ADD r3,sp,#0x0c supplies the local computed-output buffer.
+0xfb48: MOV r0,#2;0xfb4c: BL0x7fa0.
+0xfb58: LDR r1,[sp,#0x50] retrieves the expected-reference pointer.
+0xfb5c: MOV r2,#0x20;0xfb60: ADD r0,sp,#0x0c.
+0xfb64: BL0x2484 compares32 bytes.
+Thus SP+0x0c is computed output and SP+0x50 the saved caller pointer at this
+point. Confusing post-PUSH and post-SUB offsets reverses their interpretation.
+
+0x61bc initializes the context.0x61e4 loads r8=0x119a4. One configuration
+path reaches0x6254 ADD r0,r8,r4,LSL#5 after an index<13 check;0x6258 stores
+the selected pointer atA+4. Another path passes RAM0x20640 to0x869c and
+stores that returned pointer.0x869c reads hardware words near0x7042d8/
+0x7042dc in six5-byte chunks, then two bytes from0x704308, populating32 bytes.
+The first context wordA+0 is the cached auth-enabled flag, not that index.
+
+0xfa94 and0xfaa8 reference constants0x11b68/0x11b7c in additional comparisons;
+they do not replace the final comparison against the saved caller pointer.
+The incoming assertion that those two constants alone establish a sole
+immutable trust anchor is unsupported. This also does NOT establish that the
+active root is freely replaceable. No actual fuse/cache value was measured.
+
+All these distinctions were communicated back; the conflicting ordinary-
+return, SRAM-exclusivity and sole-fixed-anchor claims were retracted. A later
+incorrect SP-offset correction was also independently rejected and retracted.
+Protocol additions remain unmerged leads for a separately scoped pass.
+
+Validation after the documentation clarification:
+  make PYTHON=.venv/bin/python check
+  52 symbols/80 anchors verified;55 tests pass
+  git diff --check passes
+The ROM, symbol map and tooling behavior are unchanged. Evidence/source
+inspection, not keyword filtering or unverified agent summaries, decided
+which claims entered the atlas.
+
+## Git history and evidence recovery
+
+A later managed checkout arrived as a shallow snapshot of3eebab0, with its
+parent341ffac and earlier ancestors absent. The managed local remote likewise
+contained only a refs/delta/... pointer to3eebab0; the original source checkout
+was unavailable on this machine. refs/notes/evidence was absent. GitHub rejected
+push with 'did not receive expected object341ffacead5f26a60b269bff3dbfbcb7fe97105c'.
+The file tree and original ROM hash were intact.
+
+Recovered the exact original objects, not replacement commits: reconstructed
+the three prior trees from the recorded changes, reused the recorded commit
+messages/identities, and checked candidate timestamps against the known SHA1
+commit IDs. Only exact matches were written:
+  d841c0859509674beb8c91ccef6a03d2a6c9759c timestamp1790903525
+  76778f8fbdf17d1157173d4be7723d74d82158cd timestamp1790903933
+  341ffacead5f26a60b269bff3dbfbcb7fe97105c timestamp1790905526
+HEAD3eebab06131e049824b425813aa6b0d92818b9bf and tree
+5e52400fd32c2b18897a2c7b966cf4133d40c3b2 remained unchanged.
+
+Created an ignored temporary bare recovery source using the now-complete object
+store, then used git fetch --unshallow from it. rev-parse --is-shallow-repository
+is now false; log shows all4 original commits; fsck finds no missing objects.
+The only dangling object reported is the empty tree generated for comparison.
+No force-push, rebase, replacement history or working-file changes were used.
+
+Restored evidence contents from the recorded note-creation commands in this
+conversation. Two original note blob IDs were available and matched exactly:
+  import76778f8 ->8ca60617ea814e3a577b50fe4abf98c4b7526824
+  analysis341ffac ->502e8856a6578007f541b9b10f1cf01538e5d63c
+The earlier reconciliation text above was restored from its recorded contents;
+its old blob ID was not recorded, so no exact-hash comparison is claimed for it.
+The notes-ref commit history is newly created; this is restoration of note
+contents, not reconstruction of the original notes-ref history.
+
+The repaired feature push advanced past object validation but GitHub then
+rejected the new workflow file because the HTTPS OAuth credential lacks the
+workflow scope. No alternate credential or scope workaround was used, and
+main was not created or updated. A verified full-history bundle and restored
+note text are retained in out/git-recovery/ on this machine.
+
+## Code-size survey and exact reassembly demonstration
+
+Artifact and analysis revision: targets/msm8930-r1.2/pbl.bin at
+3eebab06131e049824b425813aa6b0d92818b9bf;131072 bytes; SHA256
+c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e.
+No firmware execution/emulation or hardware access occurred. This pass
+addresses a reported estimate of only4–12KiB executable code and the feasibility
+of matching decompilation. No original compiler attribution was established.
+
+Exact byte accounting:75124 bytes precede the all-zero suffix at0x12574;
+55948 bytes form that suffix. The prefix is NOT all code.
+
+### Preliminary static instruction coverage
+
+Ran the attached Python/Capstone5.0.7 survey from59 verified symbol/vector/
+callback seeds. Followed direct ARM branches/calls and literal-loaded PC targets;
+stopped unresolved indirect calls/returns/computed branches. Known no-return
+calls1fc/6cd8 suppress continuations. Excluded observed zero suffix, separately
+copied initialization templates, data-symbol starts and discovered literal words.
+A second pass stabilized literal exclusions.
+
+Result:11989 unique aligned instruction addresses,47956 bytes (46.83KiB),
+272 distinct direct-call destinations (NOT a certified function count),447
+literal-word exclusions. This is neither an execution trace nor a final code/data
+partition. Branch feasibility and transitive no-return behavior are not fully
+analysed; there may be both false-positive classification and uncovered code.
+It is stronger evidence than a blind linear disassembly/decodability count.
+
+Independent static check reproduced the address/count outputs and checked PC-
+write metadata plus code-to-pool boundaries using GNU ARM objdump. A separately
+written direct-control-field walker from only40 function seeds obtained11908
+addresses/47632 bytes (46.52KiB), all in the primary set. Further filtering which
+stops every unconditional call continuation retained5190 addresses/20760 bytes
+(20.27KiB). That is a robustness check, NOT a formal lower bound: its call-target
+seeds were discovered in the initial pass permitting ordinary call returns.
+
+Honest conclusion: tens of KiB of statically identified A32 instructions; the
+whole-image4–12KiB claim is unsupported. Do not replace it with an assertion
+that exactly46.83KiB of the image is code. A reviewed byte-range inventory is
+still needed, especially across unresolved indirect transfers.
+
+Generated files, ignored:
+  out/code-survey/survey.py
+    SHA2565b109dc7e1d1d90aba7e5af7eb6a1648a6a0e9cc292bdb4cf0507dc1603496f7
+  out/code-survey/instruction-addresses.json
+    SHA25655f33ca1af6e702eb9be47d2c49b350ff65d87658d4aab668ec66bde1b7b88df
+  out/code-survey/instructions.asm
+  out/code-survey/results.txt
+
+### One exact assembly rebuild, not C decompilation
+
+Reassembled copy_aligned_words, ROM[0x268,0x2bc), from mnemonic source below.
+Toolchain: GNU arm-none-eabi binutils2.45 (Fedora2.45-4.fc45).
+  arm-none-eabi-as -mcpu=arm7tdmi -o copy-words.o copy-words.S
+  arm-none-eabi-ld -Ttext=0x268 -e copy_aligned_words -o copy-words.elf copy-words.o
+  arm-none-eabi-objcopy -O binary -j .text copy-words.elf copy-words.bin
+Compared the entire84-byte output with the original ROM slice: exact match.
+SHA256646f3631a89312970ec1c3aa856ffc47200190b44c178923b39e9024aaaf6555.
+Source SHA256174347df9ccb6e337f4c9f2dcfce53b76c1f1e85c0811167d97c915d51a88f20.
+Generated files remain under out/reassembly-demo/.
+
+This validates an assembler-level representation of one routine. It does not
+identify the original compiler, establish recovered C, or prove our semantic
+names/contracts. The ELF is a newly created wrapper for this one .text slice;
+its default linker-generated data/BSS/stack symbols are NOT recovered PBL
+metadata. Only .text was extracted. No target instructions were executed.
+Successful assembly with -mcpu=arm7tdmi only establishes compatibility of this
+routine's instructions, not independent identification of the original core.
+
+### Reproduction source: static survey
+
+```python
+import collections, hashlib, json, struct
+from pathlib import Path
+from capstone import Cs, CS_ARCH_ARM, CS_MODE_ARM, CS_MODE_LITTLE_ENDIAN, CS_GRP_CALL, CS_GRP_JUMP
+from capstone.arm import ARM_CC_AL, ARM_CC_INVALID, ARM_OP_IMM, ARM_OP_MEM, ARM_OP_REG, ARM_REG_PC, ARM_INS_LDR, ARM_INS_LDRB, ARM_INS_LDRH, ARM_INS_MOV
+
+root=Path('targets/msm8930-r1.2')
+b=(root/'pbl.bin').read_bytes()
+assert hashlib.sha256(b).hexdigest()=='c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e'
+symbols=json.loads((root/'symbols.json').read_text())['symbols']
+seeds={int(s['address'],0) for s in symbols if s['kind'] in ('function','label')}
+seeds.update(range(0,0x20,4))
+for base,count in [(0x10ce0,24),(0x10d40,5),(0x124c0,8)]:
+    seeds.update(x for x in struct.unpack_from('<'+'I'*count,b,base) if x and x%4==0 and x<len(b))
+known_data_starts={int(s['address'],0) for s in symbols if s['kind']=='data'}
+# Suppress the observed zero suffix and separately copied initialization templates.
+data_ranges=[(0x12574,len(b)),(0x12050,0x124e0)]
+no_return={0x1fc,0x6cd8}
+md=Cs(CS_ARCH_ARM,CS_MODE_ARM|CS_MODE_LITTLE_ENDIAN);md.detail=True
+
+def walk(blocked):
+    queue=collections.deque(sorted(seeds)); seen={}; literals=set(); calls=set(); stops=collections.Counter()
+    while queue:
+        a=queue.popleft()
+        if a in seen: continue
+        if a<0 or a+4>len(b) or a%4: stops['outside_or_unaligned']+=1; continue
+        if a in blocked or a in known_data_starts or any(lo<=a<hi for lo,hi in data_ranges):
+            stops['known_data']+=1; continue
+        raw=b[a:a+4]
+        if raw in (b'\0'*4,b'\xff'*4): stops['uniform_word']+=1; continue
+        insn=next(md.disasm(raw,a),None)
+        if insn is None: stops['invalid_decode']+=1; continue
+        if insn.mnemonic.startswith(('svc','udf','hvc','smc')):
+            stops['exception_instruction_unclassified']+=1; continue
+        seen[a]=insn
+        conditional=insn.cc not in (ARM_CC_AL,ARM_CC_INVALID)
+        next_a=a+4
+        # Calls/branches with encoded targets, without indirect target guessing.
+        is_call=CS_GRP_CALL in insn.groups
+        is_jump=CS_GRP_JUMP in insn.groups
+        if (is_call or is_jump) and insn.operands and insn.operands[0].type==ARM_OP_IMM:
+            dst=insn.operands[0].imm
+            if not insn.mnemonic.startswith('blx'):
+                queue.append(dst)
+                if is_call: calls.add(dst)
+            else: stops['state_switch_unclassified']+=1
+            if conditional or (is_call and dst not in no_return): queue.append(next_a)
+            continue
+        literal=None
+        width={ARM_INS_LDR:4,ARM_INS_LDRB:1,ARM_INS_LDRH:2}.get(insn.id)
+        if width and len(insn.operands)>=2:
+            m=insn.operands[1]
+            if m.type==ARM_OP_MEM and m.mem.base==ARM_REG_PC and not m.mem.index:
+                loc=a+8+m.mem.disp
+                if 0<=loc<=len(b)-width:
+                    literals.update(range(loc & ~3,(loc+width+3)&~3,4))
+                    literal=int.from_bytes(b[loc:loc+width],'little')
+        _,writes=insn.regs_access()
+        writes_pc=ARM_REG_PC in writes
+        if insn.id==ARM_INS_LDR and len(insn.operands)>1 and insn.operands[0].type==ARM_OP_REG and insn.operands[0].reg==ARM_REG_PC and literal is not None:
+            if literal%4==0: queue.append(literal)
+            else: stops['state_switch_unclassified']+=1
+            if conditional: queue.append(next_a)
+        elif insn.id==ARM_INS_MOV and len(insn.operands)>1 and insn.operands[0].type==ARM_OP_REG and insn.operands[0].reg==ARM_REG_PC and insn.operands[1].type==ARM_OP_IMM:
+            queue.append(insn.operands[1].imm)
+            if conditional: queue.append(next_a)
+        elif is_call or is_jump or writes_pc:
+            # Deliberately stop at indirect calls, returns and computed branches.
+            stops['indirect_pc_or_return']+=1
+            if conditional: queue.append(next_a)
+        else:
+            queue.append(next_a)
+    return seen,literals,calls,stops
+
+blocked=set()
+for iteration in range(8):
+    seen,literals,calls,stops=walk(blocked)
+    extra=literals-blocked
+    if not extra:break
+    blocked|=extra
+else: raise RuntimeError('literal exclusion did not converge')
+assert not(set(seen)&blocked)
+print('METHOD: static direct-control-flow survey; not execution or a certified code/data partition.')
+print('Known symbol/vector/callback seeds:',len(seeds))
+print('Literal exclusion passes:',iteration+1)
+print('Distinct followed instruction addresses:',len(seen))
+print('Covered instruction bytes:',len(seen)*4, f'({len(seen)*4/1024:.2f} KiB)')
+print('Distinct direct call targets:',len(calls))
+print('Referenced literal words excluded:',len(blocked))
+print('Stops:',dict(stops))
+print('Pages: address, covered instruction bytes')
+for page in range(0,len(b),4096):
+    n=sum(page<=a<page+4096 for a in seen)*4
+    if n:print(f'0x{page:05x} {n}')
+Path('out/code-survey/instruction-addresses.json').write_text(json.dumps(sorted(seen),indent=2)+'\n')
+Path('out/code-survey/instructions.asm').write_text('\n'.join(f'{a:08x} {i.bytes.hex()} {i.mnemonic} {i.op_str}' for a,i in sorted(seen.items()))+'\n')
+
+```
+
+### Reproduction source: assembly fragment
+
+```asm
+.syntax unified
+.arm
+.section .text,"ax",%progbits
+.global copy_aligned_words
+.type copy_aligned_words,%function
+copy_aligned_words:
+    push {r0-r10, lr}
+    mov r8, r0
+    mov r9, r1
+    mov r10, r2
+    cmp r10, #0x20
+    bge .Lblock
+.Lcheck:
+    cmp r10, #0
+    bgt .Lword
+.Lreturn:
+    pop {r0-r10, pc}
+.Lblock:
+    ldmia r9!, {r0-r7}
+    stmia r8!, {r0-r7}
+    sub r10, r10, #0x20
+    cmp r10, #0x20
+    bge .Lblock
+    blt .Lcheck
+.Lword:
+    ldmia r9!, {r0}
+    stmia r8!, {r0}
+    sub r10, r10, #4
+    cmp r10, #0
+    bgt .Lword
+    ble .Lreturn
+.size copy_aligned_words, .-copy_aligned_words
+
+```
