@@ -4,7 +4,15 @@ Environment: Fedora host, arm-none-eabi binutils 2.45, no execution of the compi
 
 Gate transcript (make reconstruction / check.py):
 -------------------------------------------------
-$(cat /tmp/opencode/gate_transcript.txt)
+PASS ROM identity: 131072 bytes, sha256 c1a7d8ffc9a3b9581953107861e61d9d7d9b9b2c5dafd929571446614884f92e
+GNU assembler (Fedora 2.45-4.fc45) 2.45
+PASS asm: 172 exact bytes at 0x00004554, sha256 90b3888a248cc5acfbb4a2c9b8a9218cb18ceb70f4fc5cf7dc315f671fe4696e
+PASS rejected compiled mutation: asm-wrong-alloc-return: 172 bytes vs expected 172; first difference at literal +0x14 (instruction #5, ROM 0x00004568)
+PASS rejected compiled mutation: asm-inverted-overflow-branch: 172 bytes vs expected 172; first difference at literal +0x4b (instruction #18, ROM 0x0000459c)
+PASS rejected compiled mutation: asm-swapped-acc-shift: 172 bytes vs expected 172; first difference at literal +0x84 (instruction #33, ROM 0x000045d8)
+PASS rejected changed ROM byte
+PASS rejected truncated ROM
+ALL GATES PASSED
 
 Reconstruction provenance
 -------------------------
