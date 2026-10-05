@@ -2,9 +2,12 @@ PYTHON ?= python3
 TARGET := targets/msm8930-r1.2
 OUT := out/msm8930-r1.2
 
-.PHONY: check verify test listings
+.PHONY: check verify test reconstruction listings
 
-check: verify test
+check: verify test reconstruction
+
+reconstruction:
+	$(PYTHON) $(TARGET)/reconstruction/check.py
 
 verify:
 	$(PYTHON) tools/rom.py verify $(TARGET)

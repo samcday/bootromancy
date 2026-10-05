@@ -2,3 +2,5 @@
 /out/
 __pycache__/
 *.py[cod]
+# Byte-exactness gate by-products (commands log, objects, listings).
+targets/*/reconstruction/build/
