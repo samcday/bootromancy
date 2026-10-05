@@ -15,5 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install ARM bare-metal toolchain for byte-exactness gates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi binutils-arm-none-eabi
       - run: python -m pip install -r requirements.txt
       - run: make check listings
